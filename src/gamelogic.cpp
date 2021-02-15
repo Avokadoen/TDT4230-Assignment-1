@@ -75,6 +75,18 @@ double gameElapsedTime = debug_startTime;
 double mouseSensitivity = 1.0;
 double lastMouseX = windowWidth / 2;
 double lastMouseY = windowHeight / 2;
+
+// TODO: HACK: just keep the projection mat as a variable here for now
+//		 it should not be in the scene graph for many reasons, so not quite sure of a 
+//	     good location to keep this.
+// the camera projection and transformation (VP)
+glm::mat4 vpMat;
+const glm::mat4 identity = glm::mat4(1.0f);
+
+// TODO: same as above, where should this go? 
+GLint vpLocation = -1;
+GLint mTransformLocation = -1;
+
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -114,6 +126,10 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     shader = new Gloom::Shader();
     shader->makeBasicShader("../res/shaders/simple.vert", "../res/shaders/simple.frag");
     shader->activate();
+
+	GLint program = shader->get();
+	vpLocation = glGetUniformLocation(program, "VP");
+	mTransformLocation = glGetUniformLocation(program, "mTransform");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -348,7 +364,7 @@ void updateFrame(GLFWwindow* window) {
                     glm::rotate(lookRotation, glm::vec3(0, 1, 0)) *
                     glm::translate(-cameraPosition);
 
-    glm::mat4 VP = projection * cameraTransform;
+    vpMat = projection * cameraTransform;
 
     // Move and rotate various SceneNodes
     boxNode->position = { 0, -10, -80 };
@@ -363,10 +379,10 @@ void updateFrame(GLFWwindow* window) {
         boxNode->position.z - (boxDimensions.z/2) + (padDimensions.z/2) + (1 - padPositionZ) * (boxDimensions.z - padDimensions.z)
     };
 
-    updateNodeTransformations(rootNode, VP);
+    updateNodeTransformations(rootNode, identity);
 }
 
-void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar) {
+void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationThusFar) {
     glm::mat4 transformationMatrix =
               glm::translate(node->position)
             * glm::translate(node->referencePoint)
@@ -378,20 +394,14 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar)
 
     node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
 
-	// TODO: remove?
-    //switch(node->nodeType) {
-    //    case GEOMETRY: break;
-    //    case POINT_LIGHT: break;
-    //    case SPOT_LIGHT: break;
-    //}
-
     for(SceneNode* child : node->children) {
         updateNodeTransformations(child, node->currentTransformationMatrix);
     }
 }
 
+// should be called from renderFrame or self, or make sure to set vpLocation to current VP
 void renderNode(SceneNode* node) {
-    glUniformMatrix4fv(3, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+	glUniformMatrix4fv(mTransformLocation, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 
     switch(node->nodeType) {
         case GEOMETRY:
@@ -414,5 +424,6 @@ void renderFrame(GLFWwindow* window) {
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
 
+	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
     renderNode(rootNode);
 }
