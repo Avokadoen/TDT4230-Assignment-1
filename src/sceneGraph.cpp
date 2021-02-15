@@ -32,6 +32,7 @@ void printNode(SceneNode* node) {
 		node->rotation.x, node->rotation.y, node->rotation.z,
 		node->position.x, node->position.y, node->position.z,
 		node->referencePoint.x, node->referencePoint.y, node->referencePoint.z, 
-		node->vertexArrayObjectID);
+		node->vertexArrayObjectID
+	);
 }
 

@@ -21,11 +21,13 @@
 #include "utilities/imageLoader.hpp"
 #include "utilities/glfont.h"
 
+// TODO: code smell: can't move this thing or timestamps.h won't compile ...
 enum KeyFrameAction {
     BOTTOM, TOP
 };
-
 #include <timestamps.h>
+
+#define LIGHT_COUNT 3
 
 double padPositionX = 0;
 double padPositionZ = 0;
@@ -37,6 +39,8 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
+// Light nodes 
+SceneNode* lightNodes[LIGHT_COUNT];
 
 double ballRadius = 3.0f;
 
@@ -140,9 +144,35 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
 
+	// Task 1) a) Create 3 light nodes in the scene graph 
+	for (int i = 0; i < LIGHT_COUNT; i++) {
+		lightNodes[i] = createSceneNode();
+		
+		// Reuse ballVAO for our lights (TODO: this can probably be removed later when lights actually work)
+		lightNodes[i]->vertexArrayObjectID = ballVAO;
+		lightNodes[i]->VAOIndexCount = sphere.indices.size();
 
+		lightNodes[i]->position = glm::vec3(0);
+		lightNodes[i]->scale = glm::vec3(4);
 
+		// TODO: these are lights ...
+		lightNodes[i]->nodeType = SceneNodeType::GEOMETRY;
 
+		switch (i) {
+		case 0: 
+			padNode->children.push_back(lightNodes[i]);
+			break;
+		case 1: 
+			ballNode->children.push_back(lightNodes[i]);
+			break;
+		default:
+			// TODO: Random noise so that adding more than three lights will result in more interesting output
+			lightNodes[i]->position = { 0, -10, -80 };
+			rootNode->children.push_back(lightNodes[i]);
+			break;
+		}
+	}
+	// end Task1) a)
 
 
     getTimeDeltaSeconds();
@@ -334,10 +364,6 @@ void updateFrame(GLFWwindow* window) {
     };
 
     updateNodeTransformations(rootNode, VP);
-
-
-
-
 }
 
 void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar) {
@@ -352,11 +378,12 @@ void updateNodeTransformations(SceneNode* node, glm::mat4 transformationThusFar)
 
     node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
 
-    switch(node->nodeType) {
-        case GEOMETRY: break;
-        case POINT_LIGHT: break;
-        case SPOT_LIGHT: break;
-    }
+	// TODO: remove?
+    //switch(node->nodeType) {
+    //    case GEOMETRY: break;
+    //    case POINT_LIGHT: break;
+    //    case SPOT_LIGHT: break;
+    //}
 
     for(SceneNode* child : node->children) {
         updateNodeTransformations(child, node->currentTransformationMatrix);
