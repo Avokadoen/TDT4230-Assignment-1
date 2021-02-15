@@ -27,7 +27,16 @@ enum KeyFrameAction {
 };
 #include <timestamps.h>
 
-#define LIGHT_COUNT 3
+#define POINT_LIGHTS 3
+
+// SOA point light struct
+struct PointLights {
+	// TODOS:
+	SceneNode* nodes[POINT_LIGHTS];
+	//glm::vec3 color; // rgb color 0->1 
+	//glm::vec3 radius;
+};
+PointLights pointLights;
 
 double padPositionX = 0;
 double padPositionZ = 0;
@@ -39,8 +48,7 @@ SceneNode* rootNode;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
-// Light nodes 
-SceneNode* lightNodes[LIGHT_COUNT];
+
 
 double ballRadius = 3.0f;
 
@@ -86,6 +94,7 @@ const glm::mat4 identity = glm::mat4(1.0f);
 // TODO: same as above, where should this go? 
 GLint vpLocation = -1;
 GLint mTransformLocation = -1;
+GLint pointPosition = -1;
 
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
@@ -106,12 +115,6 @@ void mouseCallback(GLFWwindow* window, double x, double y) {
     glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
 }
 
-//// A few lines to help you if you've never used c++ structs
-// struct LightSource {
-//     bool a_placeholder_value;
-// };
-// LightSource lightSources[/*Put number of light sources you want here*/];
-
 void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
@@ -130,6 +133,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	GLint program = shader->get();
 	vpLocation = glGetUniformLocation(program, "VP");
 	mTransformLocation = glGetUniformLocation(program, "mTransform");
+	pointPosition = glGetUniformLocation(program, "pointPosition");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -160,35 +164,33 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
 
-	// Task 1) a) Create 3 light nodes in the scene graph 
-	for (int i = 0; i < LIGHT_COUNT; i++) {
-		lightNodes[i] = createSceneNode();
-		
-		// Reuse ballVAO for our lights (TODO: this can probably be removed later when lights actually work)
-		lightNodes[i]->vertexArrayObjectID = ballVAO;
-		lightNodes[i]->VAOIndexCount = sphere.indices.size();
+	for (int i = 0; i < POINT_LIGHTS; i++) {
+		pointLights.nodes[i] = createSceneNode();
 
-		lightNodes[i]->position = glm::vec3(0);
-		lightNodes[i]->scale = glm::vec3(4);
+		//// Reuse ballVAO for our lights (TODO: this can probably be removed later when lights actually work)
+		//lightSources[i].node->vertexArrayObjectID = ballVAO;
+		//lightSources[i].node->VAOIndexCount = sphere.indices.size();
+
+		pointLights.nodes[i]->position = glm::vec3(0);
+		pointLights.nodes[i]->scale = glm::vec3(4);
 
 		// TODO: these are lights ...
-		lightNodes[i]->nodeType = SceneNodeType::GEOMETRY;
+		pointLights.nodes[i]->nodeType = SceneNodeType::POINT_LIGHT;
 
 		switch (i) {
-		case 0: 
-			padNode->children.push_back(lightNodes[i]);
+		case 0:
+			padNode->children.push_back(pointLights.nodes[i]);
 			break;
-		case 1: 
-			ballNode->children.push_back(lightNodes[i]);
+		case 1:
+			ballNode->children.push_back(pointLights.nodes[i]);
 			break;
 		default:
 			// TODO: Random noise so that adding more than three lights will result in more interesting output
-			lightNodes[i]->position = { 0, -10, -80 };
-			rootNode->children.push_back(lightNodes[i]);
+			pointLights.nodes[i]->position = { 0, -10, -80 };
+			rootNode->children.push_back(pointLights.nodes[i]);
 			break;
 		}
 	}
-	// end Task1) a)
 
 
     getTimeDeltaSeconds();
@@ -403,16 +405,19 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationTh
 void renderNode(SceneNode* node) {
 	glUniformMatrix4fv(mTransformLocation, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 
-    switch(node->nodeType) {
-        case GEOMETRY:
-            if(node->vertexArrayObjectID != -1) {
-                glBindVertexArray(node->vertexArrayObjectID);
-                glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-            }
-            break;
-        case POINT_LIGHT: break;
-        case SPOT_LIGHT: break;
-    }
+	switch (node->nodeType) {
+	case GEOMETRY:
+		if (node->vertexArrayObjectID != -1) {
+			glBindVertexArray(node->vertexArrayObjectID);
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+			
+		}
+		break;
+	case POINT_LIGHT: break;
+	case SPOT_LIGHT: break;
+	
+	}
+
 
     for(SceneNode* child : node->children) {
         renderNode(child);
@@ -425,5 +430,18 @@ void renderFrame(GLFWwindow* window) {
     glViewport(0, 0, windowWidth, windowHeight);
 
 	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
+
+	// TODO: currently a hack to unwrap the position from point lights. 
+	//		 do something less hacky instead
+	glm::vec3 positions[POINT_LIGHTS];
+	
+	for (int i = 0; i < POINT_LIGHTS; i++) {
+		// extract world position from transform
+		positions[i] = glm::vec3(pointLights.nodes[i]->currentTransformationMatrix[3]);
+	}
+
+	// update light position uniform 
+	glUniform3fv(pointPosition, POINT_LIGHTS, glm::value_ptr(positions[0]));
+
     renderNode(rootNode);
 }

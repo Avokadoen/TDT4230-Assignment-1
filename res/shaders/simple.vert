@@ -1,4 +1,5 @@
 #version 430 core
+const int POINT_LIGHTS = 3;
 
 in layout(location = 0) vec3 position;
 in layout(location = 1) vec3 normal_in;
