@@ -20,6 +20,7 @@
 
 #include "utilities/imageLoader.hpp"
 #include "utilities/glfont.h"
+// TODO: separate rendering and game logic into their own file
 // TODO: use std ptr (shared, unique ...) instead of raw pointers
 // TODO: code smell: can't move this thing or timestamps.h won't compile ...
 enum KeyFrameAction {
@@ -28,6 +29,9 @@ enum KeyFrameAction {
 #include <timestamps.h>
 
 #define POINT_LIGHTS 3
+
+// Global ambience for phong shading
+glm::vec3 ambience = glm::vec3(0.1f, 0.1f, 0.1f);
 
 // SOA point light struct
 struct PointLights {
@@ -97,6 +101,7 @@ GLint vpLocation = -1;
 GLint mTransformLocation = -1; // Model transform
 GLint normalMatrixLocation = -1; // Normal transform
 GLint pointLightLocation = -1;
+GLint ambienceLocation = -1;
 
 
 void mouseCallback(GLFWwindow* window, double x, double y) {
@@ -138,6 +143,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	mTransformLocation = glGetUniformLocation(program, "mTransform");
 	normalMatrixLocation = glGetUniformLocation(program, "normalMatrix");
 	pointLightLocation = glGetUniformLocation(program, "pointPosition");
+	ambienceLocation = glGetUniformLocation(program, "ambience");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -209,11 +215,8 @@ void updateFrame(GLFWwindow* window) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     double timeDelta = getTimeDeltaSeconds();
-
-	// Display normals being transformed
-	padNode->rotation.y += timeDelta;
-
-    const float ballBottomY = boxNode->position.y - (boxDimensions.y/2) + ballRadius + padDimensions.y;
+    
+	const float ballBottomY = boxNode->position.y - (boxDimensions.y/2) + ballRadius + padDimensions.y;
     const float ballTopY    = boxNode->position.y + (boxDimensions.y/2) - ballRadius;
     const float BallVerticalTravelDistance = ballTopY - ballBottomY;
 
@@ -442,6 +445,8 @@ void renderFrame(GLFWwindow* window) {
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
 
+	// TODO: only do update of ambience if the value changes
+	glUniform3fv(ambienceLocation, 1, glm::value_ptr(ambience));
 	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
 
 	// We update lights every frame as they are usually changing each frame
