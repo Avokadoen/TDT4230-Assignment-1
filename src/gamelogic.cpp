@@ -190,6 +190,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		// Add light 0 and 1 as child of the pad and the ball node
 		switch (i) {
 		case 0:
+			// move light above pad
+			pointLights.nodes[i]->position.y += 5;
 			padNode->children.push_back(pointLights.nodes[i]);
 			break;
 		case 1:
