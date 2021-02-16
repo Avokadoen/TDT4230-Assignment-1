@@ -5,7 +5,7 @@ const int POINT_LIGHTS = 3;
 in layout(location = 0) vec3 normal;
 in layout(location = 1) vec2 textureCoordinates;
 
-uniform layout(location = 5) vec3 pointPosition[POINT_LIGHTS];
+uniform vec3 pointPosition[POINT_LIGHTS];
 
 
 out vec4 color;

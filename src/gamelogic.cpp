@@ -92,9 +92,12 @@ glm::mat4 vpMat;
 const glm::mat4 identity = glm::mat4(1.0f);
 
 // TODO: same as above, where should this go? 
+//	     add some sort of lookup logic in shader perhaps? 
 GLint vpLocation = -1;
-GLint mTransformLocation = -1;
-GLint pointPosition = -1;
+GLint mTransformLocation = -1; // Model transform
+GLint normalMatrixLocation = -1; // Normal transform
+GLint pointLightLocation = -1;
+
 
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
@@ -133,7 +136,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	GLint program = shader->get();
 	vpLocation = glGetUniformLocation(program, "VP");
 	mTransformLocation = glGetUniformLocation(program, "mTransform");
-	pointPosition = glGetUniformLocation(program, "pointPosition");
+	normalMatrixLocation = glGetUniformLocation(program, "normalMatrix");
+	pointLightLocation = glGetUniformLocation(program, "pointPosition");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -205,6 +209,9 @@ void updateFrame(GLFWwindow* window) {
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
     double timeDelta = getTimeDeltaSeconds();
+
+	// Display normals being transformed
+	padNode->rotation.y += timeDelta;
 
     const float ballBottomY = boxNode->position.y - (boxDimensions.y/2) + ballRadius + padDimensions.y;
     const float ballTopY    = boxNode->position.y + (boxDimensions.y/2) - ballRadius;
@@ -397,6 +404,12 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationTh
 
     node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
 
+	if (node->nodeType == GEOMETRY) {
+		// Calculate the normal transformation
+		glm::mat3 rotationAndScale = glm::mat3(node->currentTransformationMatrix);
+		node->normalMatrix = glm::transpose(glm::inverse(rotationAndScale));
+	}
+
     for(SceneNode* child : node->children) {
         updateNodeTransformations(child, node->currentTransformationMatrix);
     }
@@ -409,16 +422,15 @@ void renderNode(SceneNode* node) {
 	switch (node->nodeType) {
 	case GEOMETRY:
 		if (node->vertexArrayObjectID != -1) {
+			glUniformMatrix3fv(normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
 			glBindVertexArray(node->vertexArrayObjectID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-			
 		}
 		break;
 	case POINT_LIGHT: break;
 	case SPOT_LIGHT: break;
 	
 	}
-
 
     for(SceneNode* child : node->children) {
         renderNode(child);
@@ -446,7 +458,7 @@ void renderFrame(GLFWwindow* window) {
 	// TODO: we only need to send the 2 first lights, 
 	//		 consider having some logic to only update moving lights
 	// Send all light positions to the GPU
-	glUniform3fv(pointPosition, POINT_LIGHTS, glm::value_ptr(positions[0]));
+	glUniform3fv(pointLightLocation, POINT_LIGHTS, glm::value_ptr(positions[0]));
 
     renderNode(rootNode);
 }
