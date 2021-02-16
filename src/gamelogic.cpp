@@ -30,8 +30,10 @@ enum KeyFrameAction {
 
 #define POINT_LIGHTS 3
 
-// Global ambience for phong shading
-glm::vec3 ambience = glm::vec3(0.1f, 0.1f, 0.1f);
+const glm::mat4 identity = glm::mat4(1.0f);
+
+// Global ambient for phong shading
+glm::vec3 ambient = glm::vec3(0.1f, 0.1f, 0.1f);
 
 // SOA point light struct
 struct PointLights {
@@ -93,7 +95,7 @@ double lastMouseY = windowHeight / 2;
 //	     good location to keep this.
 // the camera projection and transformation (VP)
 glm::mat4 vpMat;
-const glm::mat4 identity = glm::mat4(1.0f);
+glm::mat4 cameraTransform;
 
 // TODO: same as above, where should this go? 
 //	     add some sort of lookup logic in shader perhaps? 
@@ -101,7 +103,8 @@ GLint vpLocation = -1;
 GLint mTransformLocation = -1; // Model transform
 GLint normalMatrixLocation = -1; // Normal transform
 GLint pointLightLocation = -1;
-GLint ambienceLocation = -1;
+GLint ambientLocation = -1;
+GLint viewPositionLocation = -1;
 
 
 void mouseCallback(GLFWwindow* window, double x, double y) {
@@ -143,7 +146,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	mTransformLocation = glGetUniformLocation(program, "mTransform");
 	normalMatrixLocation = glGetUniformLocation(program, "normalMatrix");
 	pointLightLocation = glGetUniformLocation(program, "pointPosition");
-	ambienceLocation = glGetUniformLocation(program, "ambience");
+	ambientLocation = glGetUniformLocation(program, "ambient");
+	viewPositionLocation = glGetUniformLocation(program, "viewPosition");
 
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
@@ -374,7 +378,7 @@ void updateFrame(GLFWwindow* window) {
 
     // Some math to make the camera move in a nice way
     float lookRotation = -0.6 / (1 + exp(-5 * (padPositionX-0.5))) + 0.3;
-    glm::mat4 cameraTransform = 
+    cameraTransform = 
                     glm::rotate(0.3f + 0.2f * float(-padPositionZ*padPositionZ), glm::vec3(1, 0, 0)) *
                     glm::rotate(lookRotation, glm::vec3(0, 1, 0)) *
                     glm::translate(-cameraPosition);
@@ -447,9 +451,11 @@ void renderFrame(GLFWwindow* window) {
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
 
-	// TODO: only do update of ambience if the value changes
-	glUniform3fv(ambienceLocation, 1, glm::value_ptr(ambience));
+	// TODO: only do update of ambient if the value changes
+	glUniform3fv(ambientLocation, 1, glm::value_ptr(ambient));
 	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
+	auto cameraPositionPtr = glm::value_ptr(glm::vec3(cameraTransform[3]));
+	glUniform3fv(viewPositionLocation, 1, cameraPositionPtr);
 
 	// We update lights every frame as they are usually changing each frame
 	// TODO: currently a hack to unwrap the position from point lights. 
