@@ -20,7 +20,7 @@
 
 #include "utilities/imageLoader.hpp"
 #include "utilities/glfont.h"
-
+// TODO: use std ptr (shared, unique ...) instead of raw pointers
 // TODO: code smell: can't move this thing or timestamps.h won't compile ...
 enum KeyFrameAction {
     BOTTOM, TOP
@@ -177,6 +177,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		// TODO: these are lights ...
 		pointLights.nodes[i]->nodeType = SceneNodeType::POINT_LIGHT;
 
+		// Add light 0 and 1 as child of the pad and the ball node
 		switch (i) {
 		case 0:
 			padNode->children.push_back(pointLights.nodes[i]);
@@ -431,16 +432,20 @@ void renderFrame(GLFWwindow* window) {
 
 	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
 
+	// We update lights every frame as they are usually changing each frame
 	// TODO: currently a hack to unwrap the position from point lights. 
 	//		 do something less hacky instead
 	glm::vec3 positions[POINT_LIGHTS];
 	
 	for (int i = 0; i < POINT_LIGHTS; i++) {
-		// extract world position from transform
+		// extract world position from transform: make member [3][0], [3][1] and [3][2] to a vec3
+		// these entries happens to be the current translation in the transform and should not be affected
+		// by any other transformation
 		positions[i] = glm::vec3(pointLights.nodes[i]->currentTransformationMatrix[3]);
 	}
-
-	// update light position uniform 
+	// TODO: we only need to send the 2 first lights, 
+	//		 consider having some logic to only update moving lights
+	// Send all light positions to the GPU
 	glUniform3fv(pointPosition, POINT_LIGHTS, glm::value_ptr(positions[0]));
 
     renderNode(rootNode);
