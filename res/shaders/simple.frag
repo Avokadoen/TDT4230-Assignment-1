@@ -4,6 +4,7 @@ const int POINT_LIGHTS = 3;
 
 struct PointLights {
 	vec3 position[POINT_LIGHTS];
+	vec3 color[POINT_LIGHTS];
 	
 	// Attenuation
 	float constant[POINT_LIGHTS];
@@ -29,8 +30,6 @@ void main()
 {
 	vec3 normNorm = normalize(normal);
 
-	// TODO: see uniform above
-	vec3 pointColor = vec3(1f);
 	// TODO: texture?
 	vec3 objectColor = vec3(0.5, 0.5, 0.5);
 	float specularIntensity = 0.3;
@@ -49,12 +48,12 @@ void main()
 		vec3 lightDir = normalize(posLightVec); 
 		// calculate cosine of the angle between normal and lightDir
 		float diff = max(dot(normal, lightDir), 0.0); 
-		vec3 diffuse = (diff * pointColor) * attenuation;
+		vec3 diffuse = (diff * pLights.color[i]) * attenuation;
 		
 		vec3 reflectDir = reflect(-lightDir, normal);  
 		vec3 viewDir = normalize(viewPosition - position);
 		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
-		vec3 specular = (spec * pointColor * specularIntensity) * attenuation;
+		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
 		illumination += (ambient + diffuse + specular) * objectColor;
 	}

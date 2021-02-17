@@ -35,17 +35,17 @@ const glm::mat4 identity = glm::mat4(1.0f);
 // Global ambient for phong shading
 glm::vec3 ambient = glm::vec3(0.05f, 0.05f, 0.05f);
 
-// SOA point light struct
+// SOA point light struct, only because it makes it easier to integrate with 
+// the scene graph code
 struct PointLights {
 	// TODOS:
 	SceneNode* nodes[POINT_LIGHTS];
+	glm::vec3 color[POINT_LIGHTS]; 
 
 	// Attenuation 
 	float constant[POINT_LIGHTS];
 	float linear[POINT_LIGHTS];
 	float quadratic[POINT_LIGHTS];
-	//glm::vec3 color; // rgb color 0->1 
-	//glm::vec3 radius;
 };
 PointLights pointLights;
 
@@ -112,6 +112,7 @@ GLint viewPositionLocation = -1;
 
 // Point light location
 GLint plPosLocation = -1;
+GLint plColLocation = -1;
 GLint plConLocation = -1;
 GLint plLinLocation = -1;
 GLint plQuaLocation = -1;
@@ -157,6 +158,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	ambientLocation = glGetUniformLocation(program, "ambient");
 	viewPositionLocation = glGetUniformLocation(program, "viewPosition");
 	plPosLocation = glGetUniformLocation(program, "pLights.position");
+	plColLocation = glGetUniformLocation(program, "pLights.color");
 	plConLocation = glGetUniformLocation(program, "pLights.constant");
 	plLinLocation = glGetUniformLocation(program, "pLights.linear");
 	plQuaLocation = glGetUniformLocation(program, "pLights.quadratic");
@@ -195,7 +197,6 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 
 		pointLights.nodes[i]->position = glm::vec3(0);
 		pointLights.nodes[i]->scale = glm::vec3(4);
-
 		pointLights.nodes[i]->nodeType = SceneNodeType::POINT_LIGHT;
 		
 		pointLights.constant[i] = 1;
@@ -203,19 +204,25 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		// Add light 0 and 1 as child of the pad and the ball node
 		switch (i) {
 		case 0:
+			pointLights.color[i] = glm::vec3(1, 0.4, 0.4);
+
+			pointLights.linear[i] = 0.002;
+			pointLights.quadratic[i] = 0.0002;
+
 			// move light above pad
-			pointLights.linear[i] = 0.02;
-			pointLights.quadratic[i] = 0.002;
 			pointLights.nodes[i]->position.y += 5;
 			padNode->children.push_back(pointLights.nodes[i]);
 			break;
 		case 1:
-			pointLights.linear[i] = 0.05;
-			pointLights.quadratic[i] = 0.005;
+			pointLights.color[i] = glm::vec3(0.4, 1, 0.4);
+
+			pointLights.linear[i] = 0.005;
+			pointLights.quadratic[i] = 0.0005;
 			ballNode->children.push_back(pointLights.nodes[i]);
 			break;
 		default:
 			// TODO: Random noise so that adding more than three lights will result in more interesting output
+			pointLights.color[i] = glm::vec3(0.4, 0.4, 1);
 			pointLights.linear[i] = 0.01;
 			pointLights.quadratic[i] = 0.001;
 			pointLights.nodes[i]->position = { 0, -10, -80 };
@@ -487,6 +494,7 @@ void renderFrame(GLFWwindow* window) {
 	//		 consider having some logic to only update moving lights
 	// Send all light positions to the GPU
 	glUniform3fv(plPosLocation, POINT_LIGHTS, glm::value_ptr(positions[0]));
+	glUniform3fv(plColLocation, POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
 	// TODO: currently this only is set on setup and does not need to be updated each loop
 	glUniform1fv(plConLocation, POINT_LIGHTS, pointLights.constant);
 	glUniform1fv(plLinLocation, POINT_LIGHTS, pointLights.linear);
