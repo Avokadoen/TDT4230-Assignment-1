@@ -58,6 +58,6 @@ void main()
 		illumination += (ambient + diffuse + specular) * objectColor;
 	}
 
-    color = vec4(objectColor * illumination, 1.0);
+    color = vec4(objectColor * (illumination + dither(textureCoordinates)), 1.0);
 }
 
