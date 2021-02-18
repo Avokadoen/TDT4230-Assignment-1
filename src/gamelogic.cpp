@@ -22,7 +22,7 @@
 #include "utilities/glfont.h"
 // TODO: separate rendering and game logic into their own file
 // TODO: use std ptr (shared, unique ...) instead of raw pointers
-// TODO: code smell: can't move this thing or timestamps.h won't compile ...
+// TODO: code smell: can't move this thing or timestamps.h won't compile ... 
 enum KeyFrameAction {
     BOTTOM, TOP
 };
@@ -35,8 +35,8 @@ const glm::mat4 identity = glm::mat4(1.0f);
 // Global ambient for phong shading
 glm::vec3 ambient = glm::vec3(0.05f, 0.05f, 0.05f);
 
-// SOA point light struct, only because it makes it easier to integrate with 
-// the scene graph code
+// SOA point light struct, because it makes it easier to integrate with 
+// the scene graph code and to send multiple member data (and less system calls)
 struct PointLights {
 	// TODOS:
 	SceneNode* nodes[POINT_LIGHTS];
@@ -117,6 +117,10 @@ GLint plConLocation = -1;
 GLint plLinLocation = -1;
 GLint plQuaLocation = -1;
 
+// ball location
+GLint ballPosLocation = -1;
+GLint ballRadLocation = -1;
+
 void mouseCallback(GLFWwindow* window, double x, double y) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
@@ -157,16 +161,22 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	normalMatrixLocation = glGetUniformLocation(program, "normalMatrix");
 	ambientLocation = glGetUniformLocation(program, "ambient");
 	viewPositionLocation = glGetUniformLocation(program, "viewPosition");
+
 	plPosLocation = glGetUniformLocation(program, "pLights.position");
 	plColLocation = glGetUniformLocation(program, "pLights.color");
 	plConLocation = glGetUniformLocation(program, "pLights.constant");
 	plLinLocation = glGetUniformLocation(program, "pLights.linear");
 	plQuaLocation = glGetUniformLocation(program, "pLights.quadratic");
 
+	ballPosLocation = glGetUniformLocation(program, "ball.position");
+	ballRadLocation = glGetUniformLocation(program, "ball.radius");
+
+	float radius = 1.0f;
+
     // Create meshes
     Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
     Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
-    Mesh sphere = generateSphere(1.0, 40, 40);
+    Mesh sphere = generateSphere(radius, 40, 40);
 
     // Fill buffers
     unsigned int ballVAO = generateBuffer(sphere);
@@ -214,6 +224,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 			padNode->children.push_back(pointLights.nodes[i]);
 			break;
 		case 1:
+			// offset the light so it can cast proper shadows 
+			pointLights.nodes[i]->position = glm::vec3(1, 1, 1);
 			pointLights.color[i] = glm::vec3(0.4, 1, 0.4);
 
 			pointLights.linear[i] = 0.005;
@@ -225,12 +237,16 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 			pointLights.color[i] = glm::vec3(0.4, 0.4, 1);
 			pointLights.linear[i] = 0.01;
 			pointLights.quadratic[i] = 0.001;
-			pointLights.nodes[i]->position = { 0, -10, -80 };
+			pointLights.nodes[i]->position = glm::vec3(0, -10, -80);
 			rootNode->children.push_back(pointLights.nodes[i]);
 			break;
 		}
 	}
 
+	glUniform1fv(plConLocation, POINT_LIGHTS, pointLights.constant);
+	glUniform1fv(plLinLocation, POINT_LIGHTS, pointLights.linear);
+	glUniform1fv(plQuaLocation, POINT_LIGHTS, pointLights.quadratic);
+	glUniform1f(ballRadLocation, radius);
 
     getTimeDeltaSeconds();
 
@@ -495,9 +511,7 @@ void renderFrame(GLFWwindow* window) {
 	// Send all light positions to the GPU
 	glUniform3fv(plPosLocation, POINT_LIGHTS, glm::value_ptr(positions[0]));
 	glUniform3fv(plColLocation, POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
-	// TODO: currently this only is set on setup and does not need to be updated each loop
-	glUniform1fv(plConLocation, POINT_LIGHTS, pointLights.constant);
-	glUniform1fv(plLinLocation, POINT_LIGHTS, pointLights.linear);
-	glUniform1fv(plQuaLocation, POINT_LIGHTS, pointLights.quadratic);
+	glUniform3fv(ballPosLocation, 1, glm::value_ptr(ballNode->position));
+
     renderNode(rootNode);
 }

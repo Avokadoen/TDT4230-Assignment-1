@@ -12,19 +12,35 @@ struct PointLights {
 	float quadratic[POINT_LIGHTS]; 
 };
 
+// TODO: position here can be merged with light position for better cache
+struct Ball {
+	vec3 position;
+	float radius;
+};
+
 in layout(location = 0) vec3 normal;
 in layout(location = 1) vec2 textureCoordinates;
 in layout(location = 2) vec3 position;
 
 uniform vec3 viewPosition;
 uniform PointLights pLights;
-// uniform vec3 pointColor[POINT_LIGHTS]; 
 uniform vec3 ambient;
+
+uniform Ball ball;
 
 out vec4 color;
 
-float rand(vec2 co) { return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); }
-float dither(vec2 uv) { return (rand(uv)*2.0-1.0) / 256.0; }
+float rand(vec2 co) { 
+	return fract(sin(dot(co.xy, vec2(12.9898,78.233))) * 43758.5453); 
+}
+
+float dither(vec2 uv) { 
+	return (rand(uv)*2.0-1.0) / 256.0; 
+}
+
+vec3 reject(vec3 from, vec3 onto) {
+	return from - onto * dot(from, onto) / dot(onto, onto);
+}
 
 void main()
 {
@@ -38,12 +54,17 @@ void main()
 	// accumulative value for illumination  
 	vec3 illumination;
 	for (int i = 0; i < POINT_LIGHTS; i++) {
+		// Calculate shadow for ball
 		vec3 posLightVec = pLights.position[i] - position;
+		vec3 posBall = position - ball.position;
+		vec3 rejection = reject(posBall, posLightVec); 
+		bool isLightBlocked = length(posLightVec) > length(posBall) && dot(posLightVec, posBall) <= 0;		
+		bool castShadow = isLightBlocked && length(rejection) < ball.radius;
 
 		// TODO: light uniform data
 		// Calculate the attenuation
-		float distance = length(posLightVec);
-		float attenuation = 1 / (pLights.constant[i] + pLights.linear[i] * distance + pLights.quadratic[i] * pow(distance, 2));
+		float posLightMagnitude = length(posLightVec);
+		float attenuation = 1 / (pLights.constant[i] + pLights.linear[i] * posLightMagnitude + pLights.quadratic[i] * pow(posLightMagnitude, 2));
 		
 		vec3 lightDir = normalize(posLightVec); 
 		// calculate cosine of the angle between normal and lightDir
@@ -55,7 +76,7 @@ void main()
 		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
 		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
-		illumination += (ambient + diffuse + specular) * objectColor;
+		illumination += (ambient + diffuse + specular) * objectColor * float(!castShadow);
 	}
 
     color = vec4(objectColor * (illumination + dither(textureCoordinates)), 1.0);
