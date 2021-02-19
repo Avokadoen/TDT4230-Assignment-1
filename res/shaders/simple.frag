@@ -61,9 +61,11 @@ void main()
 		vec3 rejection = reject(posBall, posLightVec); 
 		bool isLightBlocked = length(posLightVec) > length(posBall) && dot(posLightVec, posBall) <= 0;	
 		// TODO: find a way of applying isLightBlocked at the line where we assign float shadow ... 
-		float softShadowPos = min(max(ball.radius - length(rejection) - float(!isLightBlocked), 0), softRadius);
+		float softShadowPos = min(max(ball.radius - length(rejection), 0), softRadius);
 		float softShadow = 1 - (softShadowPos / softRadius);
-		float shadow = max(softShadow, 0);
+
+		// if light is blocked, then we dont apply shadow
+		float shadow = min(max(softShadow + float(!isLightBlocked), 0), 1);
 
 		// Calculate the attenuation
 		float posLightMagnitude = length(posLightVec);
