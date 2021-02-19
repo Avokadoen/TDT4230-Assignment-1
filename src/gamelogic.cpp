@@ -205,7 +205,6 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	for (int i = 0; i < POINT_LIGHTS; i++) {
 		pointLights.nodes[i] = createSceneNode();
 
-		pointLights.nodes[i]->position = glm::vec3(0);
 		pointLights.nodes[i]->scale = glm::vec3(4);
 		pointLights.nodes[i]->nodeType = SceneNodeType::POINT_LIGHT;
 		
@@ -219,8 +218,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 			pointLights.linear[i] = 0.002;
 			pointLights.quadratic[i] = 0.0002;
 
-			// move light above pad
-			pointLights.nodes[i]->position.y += 5;
+			// Move pad light to avoid direct collision with ball (which would make things wonky)
+			pointLights.nodes[i]->position = glm::vec3(0, 2, 0);
 			padNode->children.push_back(pointLights.nodes[i]);
 			break;
 		case 1:
