@@ -213,7 +213,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		// Add light 0 and 1 as child of the pad and the ball node
 		switch (i) {
 		case 0:
-			pointLights.color[i] = glm::vec3(1, 0.4, 0.4);
+			pointLights.color[i] = glm::vec3(1, 0, 0);
 
 			pointLights.linear[i] = 0.002;
 			pointLights.quadratic[i] = 0.0002;
@@ -225,7 +225,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		case 1:
 			// offset the light so it can cast proper shadows 
 			pointLights.nodes[i]->position = glm::vec3(1, 1, 1);
-			pointLights.color[i] = glm::vec3(0.4, 1, 0.4);
+			pointLights.color[i] = glm::vec3(0, 1, 0);
 
 			pointLights.linear[i] = 0.005;
 			pointLights.quadratic[i] = 0.0005;
@@ -233,7 +233,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 			break;
 		default:
 			// TODO: Random noise so that adding more than three lights will result in more interesting output
-			pointLights.color[i] = glm::vec3(0.4, 0.4, 1);
+			pointLights.color[i] = glm::vec3(0, 0, 1);
 			pointLights.linear[i] = 0.01;
 			pointLights.quadratic[i] = 0.001;
 			pointLights.nodes[i]->position = glm::vec3(0, -10, -80);
