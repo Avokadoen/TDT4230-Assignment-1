@@ -27,6 +27,8 @@ uniform PointLights pLights;
 uniform vec3 ambient;
 
 uniform Ball ball;
+// TODO: light member, ball member, based on distance between light and ball? 
+const float softRadius = 0.3f;
 
 out vec4 color;
 
@@ -50,7 +52,6 @@ void main()
 	vec3 objectColor = vec3(0.5, 0.5, 0.5);
 	float specularIntensity = 0.3;
 
-
 	// accumulative value for illumination  
 	vec3 illumination;
 	for (int i = 0; i < POINT_LIGHTS; i++) {
@@ -58,10 +59,11 @@ void main()
 		vec3 posLightVec = pLights.position[i] - position;
 		vec3 posBall = position - ball.position;
 		vec3 rejection = reject(posBall, posLightVec); 
-		bool isLightBlocked = length(posLightVec) > length(posBall) && dot(posLightVec, posBall) <= 0;		
-		bool castShadow = isLightBlocked && length(rejection) < ball.radius;
+		bool isLightBlocked = length(posLightVec) > length(posBall) && dot(posLightVec, posBall) <= 0;	
+		float softShadowPos = min(max(ball.radius - length(rejection) - float(!isLightBlocked), 0), softRadius);
+		float softShadow = 1 - (softShadowPos / softRadius);
+		float shadow = max(softShadow, 0);
 
-		// TODO: light uniform data
 		// Calculate the attenuation
 		float posLightMagnitude = length(posLightVec);
 		float attenuation = 1 / (pLights.constant[i] + pLights.linear[i] * posLightMagnitude + pLights.quadratic[i] * pow(posLightMagnitude, 2));
@@ -76,7 +78,7 @@ void main()
 		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
 		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
-		illumination += (ambient + diffuse + specular) * objectColor * float(!castShadow);
+		illumination += (ambient + diffuse + specular) * objectColor * shadow;
 	}
 
     color = vec4(objectColor * (illumination + dither(textureCoordinates)), 1.0);
