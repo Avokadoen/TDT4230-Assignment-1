@@ -53,7 +53,7 @@ void main()
 	float specularIntensity = 0.3;
 
 	// accumulative value for illumination  
-	vec3 illumination;
+	vec3 illumination = ambient;
 	for (int i = 0; i < POINT_LIGHTS; i++) {
 		// Calculate shadow for ball
 		vec3 posLightVec = pLights.position[i] - position;
@@ -81,7 +81,7 @@ void main()
 		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
 		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
-		illumination += (ambient + diffuse + specular) * objectColor * shadow;
+		illumination += (diffuse + specular) * objectColor * shadow;
 	}
 
     color = vec4(objectColor * (illumination + dither(textureCoordinates)), 1.0);
