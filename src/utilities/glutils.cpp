@@ -34,6 +34,10 @@ unsigned int generateBuffer(Mesh &mesh) {
 }
 
 TextureID generateTexture(const PNGImage &pngImage) {
-	// TODO
-	return -1;
+	TextureID id;
+	glGenTextures(1, &id);
+	glBindTexture(GL_TEXTURE_2D, id);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pngImage.width, pngImage.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pngImage.pixels.data());
+	glBindTexture(GL_TEXTURE_2D, 0);
+	return id;
 }
