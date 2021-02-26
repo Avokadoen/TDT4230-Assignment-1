@@ -60,7 +60,6 @@ void main()
 		vec3 posBall = position - ball.position;
 		vec3 rejection = reject(posBall, posLightVec); 
 		bool isLightBlocked = length(posLightVec) > length(posBall) && dot(posLightVec, posBall) <= 0;	
-		// TODO: find a way of applying isLightBlocked at the line where we assign float shadow ... 
 		float softShadowPos = min(max(ball.radius - length(rejection), 0), softRadius);
 		float softShadow = 1 - (softShadowPos / softRadius);
 
@@ -84,6 +83,6 @@ void main()
 		illumination += (diffuse + specular) * objectColor * shadow;
 	}
 
-    color = vec4(objectColor * (illumination + dither(textureCoordinates)), 1.0);
+    color = vec4((objectColor * illumination) + dither(textureCoordinates), 1.0);
 }
 
