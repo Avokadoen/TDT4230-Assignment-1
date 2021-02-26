@@ -32,3 +32,8 @@ unsigned int generateBuffer(Mesh &mesh) {
 
     return vaoID;
 }
+
+TextureID generateTexture(const PNGImage &pngImage) {
+	// TODO
+	return -1;
+}
