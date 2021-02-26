@@ -121,7 +121,10 @@ GLint plQuaLocation = -1;
 GLint ballPosLocation = -1;
 GLint ballRadLocation = -1;
 
-void mouseCallback(GLFWwindow* window, double x, double y) {
+// images
+PNGImage charmap;
+
+void mouseCallback(GLFWwindow* window, const double x, const double y) {
     int windowWidth, windowHeight;
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
@@ -145,6 +148,8 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
         return;
     }
+
+	charmap = loadPNGFile("../res/textures/charmap.png");
 
     options = gameOptions;
 
