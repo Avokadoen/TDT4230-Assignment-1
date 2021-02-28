@@ -121,6 +121,9 @@ GLint plQuaLocation = -1;
 GLint ballPosLocation = -1;
 GLint ballRadLocation = -1;
 
+// Text nodes
+SceneNode* testTextNode;
+
 // images
 PNGImage charmap;
 
@@ -189,10 +192,10 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     unsigned int padVAO  = generateBuffer(pad);
 
     // Construct scene
-    rootNode = createSceneNode();
-    boxNode  = createSceneNode();
-    padNode  = createSceneNode();
-    ballNode = createSceneNode();
+    rootNode = createSceneNode(GEOMETRY);
+    boxNode  = createSceneNode(GEOMETRY);
+    padNode  = createSceneNode(GEOMETRY);
+    ballNode = createSceneNode(GEOMETRY);
 
     rootNode->children.push_back(boxNode);
     rootNode->children.push_back(padNode);
@@ -208,11 +211,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->VAOIndexCount = sphere.indices.size();
 
 	for (int i = 0; i < POINT_LIGHTS; i++) {
-		pointLights.nodes[i] = createSceneNode();
-
-		pointLights.nodes[i]->scale = glm::vec3(4);
-		pointLights.nodes[i]->nodeType = SceneNodeType::POINT_LIGHT;
-		
+		pointLights.nodes[i] = createSceneNode(POINT_LIGHT);
 		pointLights.constant[i] = 1;
 
 		// Add light 0 and 1 as child of the pad and the ball node
@@ -251,8 +250,18 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 	glUniform1fv(plLinLocation, POINT_LIGHTS, pointLights.linear);
 	glUniform1fv(plQuaLocation, POINT_LIGHTS, pointLights.quadratic);
 	glUniform1f(ballRadLocation, radius);
-
-    getTimeDeltaSeconds();
+	
+	// Create test text node
+	std::string testText = "Hello world!";
+	Mesh textMesh = generateTextGeometryBuffer(testText, 39/29, testText.length() * 29);
+	const unsigned int textVAO = generateBuffer(textMesh);
+	testTextNode = createSceneNode(GEOMETRY_2D);
+	rootNode->children.push_back(testTextNode);
+	testTextNode->vertexArrayObjectID = textVAO;
+	testTextNode->VAOIndexCount = textMesh.indices.size();
+	testTextNode->position = glm::vec3(0, -10, -80);
+   
+	getTimeDeltaSeconds();
 
     std::cout << fmt::format("Initialized scene with {} SceneNodes.", totalChildren(rootNode)) << std::endl;
 
@@ -434,6 +443,8 @@ void updateFrame(GLFWwindow* window) {
     ballNode->scale = glm::vec3(ballRadius);
     ballNode->rotation = { 0, totalElapsedTime*2, 0 };
 
+	testTextNode->rotation = glm::vec3(0, totalElapsedTime * 2, 0);
+
     padNode->position  = { 
         boxNode->position.x - (boxDimensions.x/2) + (padDimensions.x/2) + (1 - padPositionX) * (boxDimensions.x - padDimensions.x), 
         boxNode->position.y - (boxDimensions.y/2) + (padDimensions.y/2), 
@@ -471,16 +482,19 @@ void renderNode(SceneNode* node) {
 	glUniformMatrix4fv(mTransformLocation, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 
 	switch (node->nodeType) {
-	case GEOMETRY:
-		if (node->vertexArrayObjectID != -1) {
+		case GEOMETRY:
+			if (node->vertexArrayObjectID == -1) break;
+
 			glUniformMatrix3fv(normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
 			glBindVertexArray(node->vertexArrayObjectID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
-		}
-		break;
-	case POINT_LIGHT: break;
-	case SPOT_LIGHT: break;
-	
+			break;
+		case GEOMETRY_2D:
+		case GEOMETRY_NORMAL_MAPPED:
+		case POINT_LIGHT:
+		case SPOT_LIGHT:
+		default:
+			break;
 	}
 
     for(SceneNode* child : node->children) {
@@ -510,6 +524,7 @@ void renderFrame(GLFWwindow* window) {
 		// by any other transformation
 		positions[i] = glm::vec3(pointLights.nodes[i]->currentTransformationMatrix[3]);
 	}
+
 	// TODO: we only need to send the 2 first lights, 
 	//		 consider having some logic to only update moving lights
 	// Send all light positions to the GPU

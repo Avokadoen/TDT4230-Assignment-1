@@ -14,11 +14,15 @@
 #include <fstream>
 
 enum SceneNodeType {
-	GEOMETRY, POINT_LIGHT, SPOT_LIGHT
+	GEOMETRY,
+	GEOMETRY_2D,
+	GEOMETRY_NORMAL_MAPPED,
+	POINT_LIGHT, 
+	SPOT_LIGHT, 
 };
 
 struct SceneNode {
-	SceneNode() {
+	SceneNode(SceneNodeType type) {
 		position = glm::vec3(0, 0, 0);
 		rotation = glm::vec3(0, 0, 0);
 		scale = glm::vec3(1, 1, 1);
@@ -27,8 +31,7 @@ struct SceneNode {
         vertexArrayObjectID = -1;
         VAOIndexCount = 0;
 
-        nodeType = GEOMETRY;
-
+        nodeType = type;
 	}
 
 	// A list of all children that belong to this node.
@@ -56,7 +59,7 @@ struct SceneNode {
 	SceneNodeType nodeType;
 };
 
-SceneNode* createSceneNode();
+SceneNode* createSceneNode(SceneNodeType type);
 void addChild(SceneNode* parent, SceneNode* child);
 void printNode(SceneNode* node);
 int totalChildren(SceneNode* parent);

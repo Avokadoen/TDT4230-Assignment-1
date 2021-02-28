@@ -26,6 +26,9 @@ Mesh generateTextGeometryBuffer(const std::string text, const float characterHei
 		mesh.vertices.at(4 * i + 0) = { baseXCoordinate, 0, 0 };
 		mesh.vertices.at(4 * i + 1) = { baseXCoordinate + characterWidth, 0, 0 };
 		mesh.vertices.at(4 * i + 2) = { baseXCoordinate + characterWidth, characterHeight, 0 };
+
+		mesh.vertices.at(4 * i + 0) = { baseXCoordinate, 0, 0 };
+		mesh.vertices.at(4 * i + 2) = { baseXCoordinate + characterWidth, characterHeight, 0 };
 		mesh.vertices.at(4 * i + 3) = { baseXCoordinate, characterHeight, 0 };
 
 		char c = text[i];

@@ -1,8 +1,8 @@
 #include "sceneGraph.hpp"
 #include <iostream>
 
-SceneNode* createSceneNode() {
-	return new SceneNode();
+SceneNode* createSceneNode(SceneNodeType nodeType) {
+	return new SceneNode(nodeType);
 }
 
 // Add a child node to its parent's list of children
