@@ -160,7 +160,7 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     glfwSetCursorPosCallback(window, mouseCallback);
 
     shader = new Gloom::Shader();
-    shader->makeBasicShader("../res/shaders/simple.vert", "../res/shaders/simple.frag");
+    shader->makeBasicShader("../res/shaders/geometry.vert", "../res/shaders/geometry.frag");
     shader->activate();
 
 	GLint program = shader->get();
