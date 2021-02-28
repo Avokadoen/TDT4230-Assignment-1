@@ -15,6 +15,7 @@
 #include <fmt/format.h>
 #include "gamelogic.h"
 #include "sceneGraph.hpp"
+#include "utilities/shaderVariables.hpp"
 #define GLM_ENABLE_EXPERIMENTAL
 #include <glm/gtx/transform.hpp>
 
@@ -102,24 +103,8 @@ double lastMouseY = windowHeight / 2;
 glm::mat4 vpMat;
 glm::mat4 cameraTransform;
 
-// TODO: same as above, where should this go? 
-//	     add some sort of lookup logic in shader perhaps? 
-GLint vpLocation = -1;
-GLint mTransformLocation = -1; // Model transform
-GLint normalMatrixLocation = -1; // Normal transform
-GLint ambientLocation = -1;
-GLint viewPositionLocation = -1;
-
-// Point light location
-GLint plPosLocation = -1;
-GLint plColLocation = -1;
-GLint plConLocation = -1;
-GLint plLinLocation = -1;
-GLint plQuaLocation = -1;
-
-// ball location
-GLint ballPosLocation = -1;
-GLint ballRadLocation = -1;
+// array of all geometry shader variable locations
+GLint geometryVars[MAX_GEOMTRY_VARS];
 
 // Text nodes
 SceneNode* testTextNode;
@@ -164,21 +149,9 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     shader->activate();
 
 	GLint program = shader->get();
-	vpLocation = glGetUniformLocation(program, "VP");
-	mTransformLocation = glGetUniformLocation(program, "mTransform");
-	normalMatrixLocation = glGetUniformLocation(program, "normalMatrix");
-	ambientLocation = glGetUniformLocation(program, "ambient");
-	viewPositionLocation = glGetUniformLocation(program, "viewPosition");
-
-	plPosLocation = glGetUniformLocation(program, "pLights.position");
-	plColLocation = glGetUniformLocation(program, "pLights.color");
-	plConLocation = glGetUniformLocation(program, "pLights.constant");
-	plLinLocation = glGetUniformLocation(program, "pLights.linear");
-	plQuaLocation = glGetUniformLocation(program, "pLights.quadratic");
-
-	ballPosLocation = glGetUniformLocation(program, "ball.position");
-	ballRadLocation = glGetUniformLocation(program, "ball.radius");
-
+	// TODO: maybe use std::array or something less hacky
+	initializeGeomtryVariables(program, geometryVars);
+	
 	float radius = 1.0f;
 
     // Create meshes
@@ -246,10 +219,11 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
 		}
 	}
 
-	glUniform1fv(plConLocation, POINT_LIGHTS, pointLights.constant);
-	glUniform1fv(plLinLocation, POINT_LIGHTS, pointLights.linear);
-	glUniform1fv(plQuaLocation, POINT_LIGHTS, pointLights.quadratic);
-	glUniform1f(ballRadLocation, radius);
+	glUniform1fv(geometryVars[PL_CONSTANT], POINT_LIGHTS, pointLights.constant);
+	glUniform1fv(geometryVars[PL_LINEAR], POINT_LIGHTS, pointLights.linear);
+	glUniform1fv(geometryVars[PL_QUADRATIC], POINT_LIGHTS, pointLights.quadratic);
+	
+	glUniform1f(geometryVars[BALL_RADIUS], radius);
 	
 	// Create test text node
 	std::string testText = "Hello world!";
@@ -479,13 +453,13 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationTh
 
 // should be called from renderFrame or self, or make sure to set vpLocation to current VP
 void renderNode(SceneNode* node) {
-	glUniformMatrix4fv(mTransformLocation, 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+	glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 
 	switch (node->nodeType) {
 		case GEOMETRY:
 			if (node->vertexArrayObjectID == -1) break;
 
-			glUniformMatrix3fv(normalMatrixLocation, 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
+			glUniformMatrix3fv(geometryVars[NORMAL_MATRIX], 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
 			glBindVertexArray(node->vertexArrayObjectID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 			break;
@@ -508,10 +482,10 @@ void renderFrame(GLFWwindow* window) {
     glViewport(0, 0, windowWidth, windowHeight);
 
 	// TODO: only do update of ambient if the value changes
-	glUniform3fv(ambientLocation, 1, glm::value_ptr(ambient));
-	glUniformMatrix4fv(vpLocation, 1, GL_FALSE, glm::value_ptr(vpMat));
+	glUniform3fv(geometryVars[AMBIENT], 1, glm::value_ptr(ambient));
+	glUniformMatrix4fv(geometryVars[VIEW_PROJECTION], 1, GL_FALSE, glm::value_ptr(vpMat));
 	auto cameraPositionPtr = glm::value_ptr(glm::vec3(cameraTransform[3]));
-	glUniform3fv(viewPositionLocation, 1, cameraPositionPtr);
+	glUniform3fv(geometryVars[VIEW_POSITION], 1, cameraPositionPtr);
 
 	// We update lights every frame as they are usually changing each frame
 	// TODO: currently a hack to unwrap the position from point lights. 
@@ -528,9 +502,10 @@ void renderFrame(GLFWwindow* window) {
 	// TODO: we only need to send the 2 first lights, 
 	//		 consider having some logic to only update moving lights
 	// Send all light positions to the GPU
-	glUniform3fv(plPosLocation, POINT_LIGHTS, glm::value_ptr(positions[0]));
-	glUniform3fv(plColLocation, POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
-	glUniform3fv(ballPosLocation, 1, glm::value_ptr(ballNode->position));
+	glUniform3fv(geometryVars[PL_POSITION], POINT_LIGHTS, glm::value_ptr(positions[0]));
+	glUniform3fv(geometryVars[PL_COLOR], POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
+	
+	glUniform3fv(geometryVars[BALL_POSITION], 1, glm::value_ptr(ballNode->position));
 
     renderNode(rootNode);
 }
