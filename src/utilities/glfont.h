@@ -3,4 +3,4 @@
 #include <string>
 #include "mesh.h"
 
-Mesh generateTextGeometryBuffer(std::string text, float characterHeightOverWidth, float totalTextWidth);
+Mesh generateTextGeometryBuffer(const std::string text, const float characterHeightOverWidth, const float totalTextWidth);
