@@ -1,6 +1,6 @@
 #include "shaderVariables.hpp"
 
-void initializeGeomtryVariables(const GLint program, GLint *vars) {
+void initializeGeomtryVariables(const GLint program, geometry_vars *vars) {
 	vars[VIEW_PROJECTION] = glGetUniformLocation(program, "VP");
 	vars[TRANSFORM] = glGetUniformLocation(program, "mTransform");
 	vars[NORMAL_MATRIX] = glGetUniformLocation(program, "normalMatrix");
@@ -15,4 +15,8 @@ void initializeGeomtryVariables(const GLint program, GLint *vars) {
 
 	vars[BALL_POSITION] = glGetUniformLocation(program, "ball.position");
 	vars[BALL_RADIUS] = glGetUniformLocation(program, "ball.radius");
+}
+
+void initializeGeomtry2DVariables(const GLint program, geometry_2d_vars *vars) {
+	vars[MVP] = glGetUniformLocation(program, "MVP");
 }

@@ -5,6 +5,4 @@
 
 unsigned int generateBuffer(Mesh &mesh);
 
-
-typedef GLuint TextureID;
-TextureID generateTexture(const PNGImage &pngImage);
+GLuint generateTexture(const PNGImage &pngImage);

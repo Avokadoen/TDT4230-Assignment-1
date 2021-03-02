@@ -20,7 +20,9 @@ unsigned int generateBuffer(Mesh &mesh) {
     glBindVertexArray(vaoID);
 
     generateAttribute(0, 3, mesh.vertices, false);
-    generateAttribute(1, 3, mesh.normals, true);
+	if (mesh.normals.size() > 0) {
+		generateAttribute(1, 3, mesh.normals, true);
+	}
     if (mesh.textureCoordinates.size() > 0) {
         generateAttribute(2, 2, mesh.textureCoordinates, false);
     }
@@ -33,8 +35,8 @@ unsigned int generateBuffer(Mesh &mesh) {
     return vaoID;
 }
 
-TextureID generateTexture(const PNGImage &pngImage) {
-	TextureID id;
+GLuint generateTexture(const PNGImage &pngImage) {
+	GLuint id;
 	glGenTextures(1, &id);
 	glBindTexture(GL_TEXTURE_2D, id);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pngImage.width, pngImage.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pngImage.pixels.data());

@@ -66,7 +66,8 @@ double ballRadius = 3.0f;
 
 // These are heap allocated, because they should not be initialised at the start of the program
 sf::SoundBuffer* buffer;
-Gloom::Shader* shader;
+Gloom::Shader* geometryShader;
+Gloom::Shader* geometry2DShader;
 sf::Sound* sound;
 
 const glm::vec3 boxDimensions(180, 90, 90);
@@ -100,17 +101,18 @@ double lastMouseY = windowHeight / 2;
 //		 it should not be in the scene graph for many reasons, so not quite sure of a 
 //	     good location to keep this.
 // the camera projection and transformation (VP)
+glm::mat4 pers_projection;
+glm::mat4 orth_projection;
 glm::mat4 vpMat;
 glm::mat4 cameraTransform;
 
+// TODO: maybe use std::array or something less hacky
 // array of all geometry shader variable locations
-GLint geometryVars[MAX_GEOMTRY_VARS];
+GLint geometryVars[MAX_GEOMETRY_VARS];
+GLint geometry2DVars[MAX_GEOMETRY2D_VARS];
 
 // Text nodes
 SceneNode* testTextNode;
-
-// images
-PNGImage charmap;
 
 void mouseCallback(GLFWwindow* window, const double x, const double y) {
     int windowWidth, windowHeight;
@@ -131,26 +133,27 @@ void mouseCallback(GLFWwindow* window, const double x, const double y) {
     glfwSetCursorPos(window, windowWidth / 2, windowHeight / 2);
 }
 
-void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
+void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
     buffer = new sf::SoundBuffer();
     if (!buffer->loadFromFile("../res/Hall of the Mountain King.ogg")) {
         return;
     }
 
-	charmap = loadPNGFile("../res/textures/charmap.png");
+	PNGImage charmap = loadPNGFile("../res/textures/charmap.png");
+	GLint charMapId = generateTexture(charmap);
 
     options = gameOptions;
 
     glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
     glfwSetCursorPosCallback(window, mouseCallback);
 
-    shader = new Gloom::Shader();
-    shader->makeBasicShader("../res/shaders/geometry.vert", "../res/shaders/geometry.frag");
-    shader->activate();
+	geometryShader = new Gloom::Shader();
+	geometryShader->makeBasicShader("../res/shaders/geometry.vert", "../res/shaders/geometry.frag");
+	initializeGeomtryVariables(geometryShader->get(), geometryVars);
 
-	GLint program = shader->get();
-	// TODO: maybe use std::array or something less hacky
-	initializeGeomtryVariables(program, geometryVars);
+	geometry2DShader = new Gloom::Shader();
+	geometry2DShader->makeBasicShader("../res/shaders/geometry_2D.vert", "../res/shaders/geometry_2D.frag");
+	initializeGeomtry2DVariables(geometry2DShader->get(), geometry2DVars);
 	
 	float radius = 1.0f;
 
@@ -183,58 +186,66 @@ void initGame(GLFWwindow* window, CommandLineOptions gameOptions) {
     ballNode->vertexArrayObjectID = ballVAO;
     ballNode->VAOIndexCount = sphere.indices.size();
 
-	for (int i = 0; i < POINT_LIGHTS; i++) {
-		pointLights.nodes[i] = createSceneNode(POINT_LIGHT);
-		pointLights.constant[i] = 1;
+	{
+		for (int i = 0; i < POINT_LIGHTS; i++) {
+			pointLights.nodes[i] = createSceneNode(POINT_LIGHT);
+			pointLights.constant[i] = 1;
 
-		// Add light 0 and 1 as child of the pad and the ball node
-		switch (i) {
-		case 0:
-			pointLights.color[i] = glm::vec3(1, 0, 0);
+			// Add light 0 and 1 as child of the pad and the ball node
+			switch (i) {
+			case 0:
+				pointLights.color[i] = glm::vec3(1, 0, 0);
 
-			pointLights.linear[i] = 0.002;
-			pointLights.quadratic[i] = 0.0002;
+				pointLights.linear[i] = 0.002;
+				pointLights.quadratic[i] = 0.0002;
 
-			// Move pad light to avoid direct collision with ball (which would make things wonky)
-			pointLights.nodes[i]->position = glm::vec3(0, 2, 0);
-			padNode->children.push_back(pointLights.nodes[i]);
-			break;
-		case 1:
-			// offset the light so it can cast proper shadows 
-			pointLights.nodes[i]->position = glm::vec3(1, 1, 1);
-			pointLights.color[i] = glm::vec3(0, 1, 0);
+				// Move pad light to avoid direct collision with ball (which would make things wonky)
+				pointLights.nodes[i]->position = glm::vec3(0, 2, 0);
+				padNode->children.push_back(pointLights.nodes[i]);
+				break;
+			case 1:
+				// offset the light so it can cast proper shadows 
+				pointLights.nodes[i]->position = glm::vec3(1, 1, 1);
+				pointLights.color[i] = glm::vec3(0, 1, 0);
 
-			pointLights.linear[i] = 0.005;
-			pointLights.quadratic[i] = 0.0005;
-			ballNode->children.push_back(pointLights.nodes[i]);
-			break;
-		default:
-			// TODO: Random noise so that adding more than three lights will result in more interesting output
-			pointLights.color[i] = glm::vec3(0, 0, 1);
-			pointLights.linear[i] = 0.01;
-			pointLights.quadratic[i] = 0.001;
-			pointLights.nodes[i]->position = glm::vec3(0, -10, -80);
-			rootNode->children.push_back(pointLights.nodes[i]);
-			break;
+				pointLights.linear[i] = 0.005;
+				pointLights.quadratic[i] = 0.0005;
+				ballNode->children.push_back(pointLights.nodes[i]);
+				break;
+			default:
+				// TODO: Random noise so that adding more than three lights will result in more interesting output
+				pointLights.color[i] = glm::vec3(0, 0, 1);
+				pointLights.linear[i] = 0.01;
+				pointLights.quadratic[i] = 0.001;
+				pointLights.nodes[i]->position = glm::vec3(0, -10, -80);
+				rootNode->children.push_back(pointLights.nodes[i]);
+				break;
+			}
 		}
+		geometryShader->activate();
+		glUniform1fv(geometryVars[PL_CONSTANT], POINT_LIGHTS, pointLights.constant);
+		glUniform1fv(geometryVars[PL_LINEAR], POINT_LIGHTS, pointLights.linear);
+		glUniform1fv(geometryVars[PL_QUADRATIC], POINT_LIGHTS, pointLights.quadratic);
+		glUniform1f(geometryVars[BALL_RADIUS], radius);
+		geometryShader->deactivate();
 	}
 
-	glUniform1fv(geometryVars[PL_CONSTANT], POINT_LIGHTS, pointLights.constant);
-	glUniform1fv(geometryVars[PL_LINEAR], POINT_LIGHTS, pointLights.linear);
-	glUniform1fv(geometryVars[PL_QUADRATIC], POINT_LIGHTS, pointLights.quadratic);
-	
-	glUniform1f(geometryVars[BALL_RADIUS], radius);
-	
-	// Create test text node
-	std::string testText = "Hello world!";
-	Mesh textMesh = generateTextGeometryBuffer(testText, 39/29, testText.length() * 29);
-	const unsigned int textVAO = generateBuffer(textMesh);
-	testTextNode = createSceneNode(GEOMETRY_2D);
-	rootNode->children.push_back(testTextNode);
-	testTextNode->vertexArrayObjectID = textVAO;
-	testTextNode->VAOIndexCount = textMesh.indices.size();
-	testTextNode->position = glm::vec3(0, -10, -80);
-   
+	{
+		// Create test text node
+		std::string testText = "Hello world!";
+		Mesh textMesh = generateTextGeometryBuffer(testText, 39/29, testText.length() * 29);
+		const unsigned int textVAO = generateBuffer(textMesh);
+		testTextNode = createSceneNode(GEOMETRY_2D);
+		rootNode->children.push_back(testTextNode);
+		testTextNode->vertexArrayObjectID = textVAO;
+		testTextNode->VAOIndexCount = textMesh.indices.size();
+		testTextNode->position = glm::vec3(0, 0, 0);
+		testTextNode->textureID = charMapId;
+	}
+	// currently the application can't change window size, so we only construct this in setup. 
+	// glfw support listening to window resize so we could move this there if we ever support it
+	pers_projection = glm::perspective(glm::radians(80.0f), float(windowWidth) / float(windowHeight), 0.1f, 350.f);
+	orth_projection = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight), -1.0f, 1.0f);
 	getTimeDeltaSeconds();
 
     std::cout << fmt::format("Initialized scene with {} SceneNodes.", totalChildren(rootNode)) << std::endl;
@@ -397,8 +408,6 @@ void updateFrame(GLFWwindow* window) {
         }
     }
 
-    glm::mat4 projection = glm::perspective(glm::radians(80.0f), float(windowWidth) / float(windowHeight), 0.1f, 350.f);
-
     glm::vec3 cameraPosition = glm::vec3(0, 2, -20);
 
     // Some math to make the camera move in a nice way
@@ -408,7 +417,7 @@ void updateFrame(GLFWwindow* window) {
                     glm::rotate(lookRotation, glm::vec3(0, 1, 0)) *
                     glm::translate(-cameraPosition);
 
-    vpMat = projection * cameraTransform;
+    vpMat = pers_projection * cameraTransform;
 
     // Move and rotate various SceneNodes
     boxNode->position = { 0, -10, -80 };
@@ -416,8 +425,6 @@ void updateFrame(GLFWwindow* window) {
     ballNode->position = ballPosition;
     ballNode->scale = glm::vec3(ballRadius);
     ballNode->rotation = { 0, totalElapsedTime*2, 0 };
-
-	testTextNode->rotation = glm::vec3(0, totalElapsedTime * 2, 0);
 
     padNode->position  = { 
         boxNode->position.x - (boxDimensions.x/2) + (padDimensions.x/2) + (1 - padPositionX) * (boxDimensions.x - padDimensions.x), 
@@ -428,7 +435,7 @@ void updateFrame(GLFWwindow* window) {
     updateNodeTransformations(rootNode, identity);
 }
 
-void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationThusFar) {
+void updateNodeTransformations(SceneNode* node, const glm::mat4& transformationThusFar) {
     glm::mat4 transformationMatrix =
               glm::translate(node->position)
             * glm::translate(node->referencePoint)
@@ -452,27 +459,37 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4 transformationTh
 }
 
 // should be called from renderFrame or self, or make sure to set vpLocation to current VP
-void renderNode(SceneNode* node) {
-	glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
-
-	switch (node->nodeType) {
+void renderNode(SceneNode* node, SceneNodeType nodeType) {
+	if (node->nodeType == nodeType) {
+		switch (node->nodeType) {
 		case GEOMETRY:
 			if (node->vertexArrayObjectID == -1) break;
-
+			glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 			glUniformMatrix3fv(geometryVars[NORMAL_MATRIX], 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
 			glBindVertexArray(node->vertexArrayObjectID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 			break;
 		case GEOMETRY_2D:
+			if (node->vertexArrayObjectID == -1) break;
+			glm::mat4 mp = node->currentTransformationMatrix * orth_projection;
+			glUniformMatrix4fv(geometry2DVars[MP], 1, GL_FALSE, glm::value_ptr(mp));
+			glBindVertexArray(node->vertexArrayObjectID);
+			// TODO: default to an error texture if ID is not set
+			// currently only use one texture unit (0)
+			glBindTextureUnit(0, node->textureID);
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+			glBindTextureUnit(0, 0); 
+			break;
 		case GEOMETRY_NORMAL_MAPPED:
 		case POINT_LIGHT:
 		case SPOT_LIGHT:
 		default:
 			break;
+		}
 	}
 
     for(SceneNode* child : node->children) {
-        renderNode(child);
+        renderNode(child, nodeType);
     }
 }
 
@@ -481,31 +498,39 @@ void renderFrame(GLFWwindow* window) {
     glfwGetWindowSize(window, &windowWidth, &windowHeight);
     glViewport(0, 0, windowWidth, windowHeight);
 
-	// TODO: only do update of ambient if the value changes
-	glUniform3fv(geometryVars[AMBIENT], 1, glm::value_ptr(ambient));
-	glUniformMatrix4fv(geometryVars[VIEW_PROJECTION], 1, GL_FALSE, glm::value_ptr(vpMat));
-	auto cameraPositionPtr = glm::value_ptr(glm::vec3(cameraTransform[3]));
-	glUniform3fv(geometryVars[VIEW_POSITION], 1, cameraPositionPtr);
+	{
+		// We update lights every frame as they are usually changing each frame
+		// TODO: currently a hack to unwrap the position from point lights. 
+		//		 do something less hacky instead
+		glm::vec3 positions[POINT_LIGHTS];
 
-	// We update lights every frame as they are usually changing each frame
-	// TODO: currently a hack to unwrap the position from point lights. 
-	//		 do something less hacky instead
-	glm::vec3 positions[POINT_LIGHTS];
-	
-	for (int i = 0; i < POINT_LIGHTS; i++) {
-		// extract world position from transform: make member [3][0], [3][1] and [3][2] to a vec3
-		// these entries happens to be the current translation in the transform and should not be affected
-		// by any other transformation
-		positions[i] = glm::vec3(pointLights.nodes[i]->currentTransformationMatrix[3]);
+		for (int i = 0; i < POINT_LIGHTS; i++) {
+			// extract world position from transform: make member [3][0], [3][1] and [3][2] to a vec3
+			// these entries happens to be the current translation in the transform and should not be affected
+			// by any other transformation
+			positions[i] = glm::vec3(pointLights.nodes[i]->currentTransformationMatrix[3]);
+		}
+		geometryShader->activate();
+		// TODO: only do update of ambient if the value changes
+		glUniform3fv(geometryVars[AMBIENT], 1, glm::value_ptr(ambient));
+		glUniformMatrix4fv(geometryVars[VIEW_PROJECTION], 1, GL_FALSE, glm::value_ptr(vpMat));
+		auto cameraPositionPtr = glm::value_ptr(glm::vec3(cameraTransform[3]));
+		glUniform3fv(geometryVars[VIEW_POSITION], 1, cameraPositionPtr);
+		// TODO: we only need to send the 2 first lights, 
+		//		 consider having some logic to only update moving lights
+		// Send all light positions to the GPU
+		glUniform3fv(geometryVars[PL_POSITION], POINT_LIGHTS, glm::value_ptr(positions[0]));
+		glUniform3fv(geometryVars[PL_COLOR], POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
+		glUniform3fv(geometryVars[BALL_POSITION], 1, glm::value_ptr(ballNode->position));
+		renderNode(rootNode, GEOMETRY);
+		geometryShader->deactivate();
 	}
-
-	// TODO: we only need to send the 2 first lights, 
-	//		 consider having some logic to only update moving lights
-	// Send all light positions to the GPU
-	glUniform3fv(geometryVars[PL_POSITION], POINT_LIGHTS, glm::value_ptr(positions[0]));
-	glUniform3fv(geometryVars[PL_COLOR], POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
 	
-	glUniform3fv(geometryVars[BALL_POSITION], 1, glm::value_ptr(ballNode->position));
 
-    renderNode(rootNode);
+	{
+		geometry2DShader->activate();
+		// TODO: doesn't really make sense to use the same scene for UI?
+		renderNode(rootNode, GEOMETRY_2D);
+		geometry2DShader->deactivate();
+	}
 }
