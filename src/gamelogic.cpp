@@ -1,4 +1,5 @@
 #include <chrono>
+#include <algorithm>
 #include <GLFW/glfw3.h>
 #include <glad/glad.h>
 #include <SFML/Audio/SoundBuffer.hpp>
@@ -23,6 +24,7 @@
 #include "utilities/glfont.h"
 // TODO: separate rendering and game logic into their own file
 // TODO: use std ptr (shared, unique ...) instead of raw pointers
+
 // TODO: code smell: can't move this thing or timestamps.h won't compile ... 
 enum KeyFrameAction {
     BOTTOM, TOP
@@ -39,7 +41,6 @@ glm::vec3 ambient = glm::vec3(0.05f, 0.05f, 0.05f);
 // SOA point light struct, because it makes it easier to integrate with 
 // the scene graph code and to send multiple member data (and less system calls)
 struct PointLights {
-	// TODOS:
 	SceneNode* nodes[POINT_LIGHTS];
 	glm::vec3 color[POINT_LIGHTS]; 
 
@@ -61,6 +62,9 @@ SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
 
+// Text nodes
+SceneNode* scoreTextNode;
+SceneNode* instructionTextNode;
 
 double ballRadius = 3.0f;
 
@@ -77,6 +81,10 @@ glm::vec3 ballPosition(0, ballRadius + padDimensions.y, boxDimensions.z / 2);
 glm::vec3 ballDirection(1, 1, 0.2f);
 
 CommandLineOptions options;
+
+int score = 0;
+TextMesh scoreText;
+GLIds scoreTextIds;
 
 bool hasStarted = false;
 bool hasLost = false;
@@ -111,8 +119,12 @@ glm::mat4 cameraTransform;
 GLint geometryVars[MAX_GEOMETRY_VARS];
 GLint geometry2DVars[MAX_GEOMETRY2D_VARS];
 
-// Text nodes
-SceneNode* testTextNode;
+
+void updateScore(int addition) {
+	score += addition;
+	updateTextGeometryBuffer(scoreText, "score: " + std::to_string(score));
+	updateBuffer(scoreTextIds.vao, scoreTextIds.texture, scoreText.mesh.textureCoordinates);
+}
 
 void mouseCallback(GLFWwindow* window, const double x, const double y) {
     int windowWidth, windowHeight;
@@ -163,9 +175,9 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
     Mesh sphere = generateSphere(radius, 40, 40);
 
     // Fill buffers
-    unsigned int ballVAO = generateBuffer(sphere);
-    unsigned int boxVAO  = generateBuffer(box);
-    unsigned int padVAO  = generateBuffer(pad);
+    unsigned int ballVAO = generateBuffer(sphere, false).vao;
+    unsigned int boxVAO  = generateBuffer(box, false).vao;
+    unsigned int padVAO  = generateBuffer(pad, false).vao;
 
     // Construct scene
     rootNode = createSceneNode(GEOMETRY);
@@ -231,19 +243,41 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 	}
 
 	{
-		// Create test text node
-		std::string testText = "Hello world!";
-		Mesh textMesh = generateTextGeometryBuffer(testText, 39/29, testText.length() * 29);
-		const unsigned int textVAO = generateBuffer(textMesh);
-		testTextNode = createSceneNode(GEOMETRY_2D);
-		rootNode->children.push_back(testTextNode);
-		testTextNode->vertexArrayObjectID = textVAO;
-		testTextNode->VAOIndexCount = textMesh.indices.size();
-		testTextNode->position = glm::vec3(0, 0, 0);
-		testTextNode->textureID = charMapId;
+		// Create test text node, max score of 99999999 and min of -9999999
+		std::string scoreTemplate			= "score: xxxxxxxx";
+		scoreText							= generateTextGeometryBuffer(scoreTemplate, 39/29, scoreTemplate.length() * 29);
+		scoreTextIds						= generateBuffer(scoreText.mesh, true);
+		scoreTextNode						= createSceneNode(GEOMETRY_2D);
+		scoreTextNode->vertexArrayObjectID	= scoreTextIds.vao;
+		scoreTextNode->VAOIndexCount		= scoreText.mesh.indices.size();
+		scoreTextNode->position				= glm::vec3(0, 0, 0);
+		scoreTextNode->textureID			= charMapId;
+		
+		rootNode->children.push_back(scoreTextNode);
+		// Update score text to 0 in UI (will be 'xxxxxxxx' otherwise)
+		updateScore(0); 
 	}
+
+	{
+		// Create instruction text node
+		std::string instrText						= "press left mouse button to start";
+		float totalWidth							= instrText.length() * 29;
+		TextMesh instrMesh							= generateTextGeometryBuffer(instrText, 39 / 29, totalWidth);
+		GLuint instrVao								= generateBuffer(instrMesh.mesh, false).vao;
+		instructionTextNode							= createSceneNode(GEOMETRY_2D);
+		instructionTextNode->vertexArrayObjectID	= instrVao;
+		instructionTextNode->VAOIndexCount			= instrMesh.mesh.indices.size();
+		// Place text at the middle of the screen
+		float xPosition								= totalWidth * 0.5 / windowWidth; 
+		instructionTextNode->position				= glm::vec3(xPosition, 1, 0);
+		instructionTextNode->textureID				= charMapId;
+
+		rootNode->children.push_back(instructionTextNode);
+	}
+
 	// currently the application can't change window size, so we only construct this in setup. 
 	// glfw support listening to window resize so we could move this there if we ever support it
+	// Keep in mind that text should be regenerated on resize
 	pers_projection = glm::perspective(glm::radians(80.0f), float(windowWidth) / float(windowHeight), 0.1f, 350.f);
 	orth_projection = glm::ortho(0.0f, float(windowWidth), 0.0f, float(windowHeight), -1.0f, 1.0f);
 	getTimeDeltaSeconds();
@@ -284,8 +318,13 @@ void updateFrame(GLFWwindow* window) {
         mouseRightPressed = false;
     }
     
+	// TODO: FSM
     if(!hasStarted) {
         if (mouseLeftPressed) {
+
+			// Remove instruction on how to start game
+			rootNode->children.erase(std::remove(rootNode->children.begin(), rootNode->children.end(), instructionTextNode), rootNode->children.end());
+
             if (options.enableMusic) {
                 sound = new sf::Sound();
                 sound->setBuffer(*buffer);
@@ -304,6 +343,10 @@ void updateFrame(GLFWwindow* window) {
     } else {
         totalElapsedTime += timeDelta;
         if(hasLost) {
+
+			// Add instruction on how to restart
+			rootNode->children.push_back(instructionTextNode);
+
             if (mouseLeftReleased) {
                 hasLost = false;
                 hasStarted = false;
@@ -399,11 +442,15 @@ void updateFrame(GLFWwindow* window) {
                     || ballPosition.z < padFrontZ
                     || ballPosition.z > padBackZ) {
                     hasLost = true;
+					updateScore(-50);
                     if (options.enableMusic) {
                         sound->stop();
                         delete sound;
                     }
-                }
+				}
+				else {
+					updateScore(10);
+				}
             }
         }
     }

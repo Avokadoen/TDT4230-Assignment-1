@@ -4,35 +4,36 @@
 #include <vector>
 
 template <class T>
-unsigned int generateAttribute(int id, int elementsPerEntry, std::vector<T> data, bool normalize) {
+unsigned int generateAttribute(GLuint id, int elementsPerEntry, std::vector<T> data, bool normalize, bool dynamic) {
     unsigned int bufferID;
     glGenBuffers(1, &bufferID);
     glBindBuffer(GL_ARRAY_BUFFER, bufferID);
-    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(T), data.data(), GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, data.size() * sizeof(T), data.data(), dynamic ? GL_DYNAMIC_DRAW : GL_STATIC_DRAW);
     glVertexAttribPointer(id, elementsPerEntry, GL_FLOAT, normalize ? GL_TRUE : GL_FALSE, sizeof(T), 0);
     glEnableVertexAttribArray(id);
     return bufferID;
 }
 
-unsigned int generateBuffer(Mesh &mesh) {
-    unsigned int vaoID;
-    glGenVertexArrays(1, &vaoID);
-    glBindVertexArray(vaoID);
+// TODO: use enum bitmask for dynamic configuration
+GLIds generateBuffer(const Mesh &mesh, bool dynamicTexture) {
+	GLIds ids; 
 
-    generateAttribute(0, 3, mesh.vertices, false);
+    glGenVertexArrays(1, &ids.vao);
+    glBindVertexArray(ids.vao);
+
+	ids.vertex = generateAttribute(0, 3, mesh.vertices, false, false);
 	if (mesh.normals.size() > 0) {
-		generateAttribute(1, 3, mesh.normals, true);
+		ids.normal = generateAttribute(1, 3, mesh.normals, true, false);
 	}
     if (mesh.textureCoordinates.size() > 0) {
-        generateAttribute(2, 2, mesh.textureCoordinates, false);
+        ids.texture = generateAttribute(2, 2, mesh.textureCoordinates, false, dynamicTexture);
     }
 
-    unsigned int indexBufferID;
-    glGenBuffers(1, &indexBufferID);
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBufferID);
+    glGenBuffers(1, &ids.index);
+    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ids.index);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned int), mesh.indices.data(), GL_STATIC_DRAW);
 
-    return vaoID;
+    return ids;
 }
 
 GLuint generateTexture(const PNGImage &pngImage) {

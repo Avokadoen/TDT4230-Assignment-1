@@ -3,4 +3,12 @@
 #include <string>
 #include "mesh.h"
 
-Mesh generateTextGeometryBuffer(const std::string text, const float characterHeightOverWidth, const float totalTextWidth);
+struct TextMesh {
+	Mesh mesh;
+	std::string text;
+};
+
+TextMesh generateTextGeometryBuffer(const std::string text, const float characterHeightOverWidth, const float totalTextWidth);
+
+// Update text on mesh. If text exceed initial text, then the remaining characters are omitted.
+void updateTextGeometryBuffer(TextMesh& TextMesh, const std::string text);
