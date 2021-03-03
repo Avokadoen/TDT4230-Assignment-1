@@ -15,7 +15,7 @@ out layout(location = 3) mat3 tbn_out;
 
 void main()
 {
-	textureCoordinates_out = textureCoordinates_in;
+	textureCoordinates_out = vec2(textureCoordinates_in.x , 1.0 - textureCoordinates_in.y);
 	
 	vec4 preProjPos = mTransform * vec4(position, 1.0f);
 	position_out = vec3(preProjPos);
