@@ -2,6 +2,7 @@
 #include <program.hpp>
 #include "glutils.h"
 #include <vector>
+#include <iostream>
 
 template <class T>
 unsigned int generateAttribute(GLuint id, int elementsPerEntry, std::vector<T> data, bool normalize, bool dynamic) {
@@ -34,6 +35,79 @@ GLIds generateBuffer(const Mesh &mesh, bool dynamicTexture) {
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.indices.size() * sizeof(unsigned int), mesh.indices.data(), GL_STATIC_DRAW);
 
     return ids;
+}
+
+struct Tangents {
+	glm::vec3 tangent;
+	glm::vec3 bitTangent;
+};
+
+Tangents computeTangents(const glm::vec3& deltaPos1, const glm::vec3& deltaPos2, const glm::vec2& deltaUV1, const glm::vec2& deltaUV2) {
+	float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+	glm::vec3 tangent;
+	tangent.x = f * (deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x);
+	tangent.y = f * (deltaUV2.y * deltaPos1.y - deltaUV1.y * deltaPos2.y);
+	tangent.z = f * (deltaUV2.y * deltaPos1.z - deltaUV1.y * deltaPos2.z);
+	glm::vec3 bitTangent;
+	bitTangent.x = f * (-deltaUV2.x * deltaPos1.x + deltaUV1.x * deltaPos2.x);
+	bitTangent.y = f * (-deltaUV2.x * deltaPos1.y + deltaUV1.x * deltaPos2.y);
+	bitTangent.z = f * (-deltaUV2.x * deltaPos1.z + deltaUV1.x * deltaPos2.z);
+
+	return Tangents{
+		tangent,
+		bitTangent
+	};
+}
+
+//inline void DEBUG_PRINT(std::string msg, glm::vec3& vec) {
+//	std::cout << msg << vec.x << " " << vec.y << " " << vec.z;
+//}
+
+// GEOMETRY_NORMAL_MAPPED nodes should call this before being rendered
+void appendTBNBuffer(Mesh &mesh, GLIds* ids) {
+	unsigned int vertSize = mesh.vertices.size();
+
+	std::vector<glm::vec3> tangents;
+	std::vector<glm::vec3> bitTangents;
+	tangents.reserve(vertSize);
+	bitTangents.reserve(vertSize);
+
+	for (int i = 0; i + 2 < mesh.vertices.size(); i += 3) {
+		glm::vec3& v0 = mesh.vertices[i];
+		glm::vec3& v1 = mesh.vertices[i + 1];
+		glm::vec3& v2 = mesh.vertices[i + 2];
+
+		glm::vec2& uv0 = mesh.textureCoordinates[i];
+		glm::vec2& uv1 = mesh.textureCoordinates[i + 1];
+		glm::vec2& uv2 = mesh.textureCoordinates[i + 2];
+
+		Tangents tangents1 = computeTangents(v1 - v0, v2 - v0, uv1 - uv0, uv2 - uv0);
+		Tangents tangents2 = computeTangents(v2 - v1, v0 - v1, uv2 - uv1, uv0 - uv1);
+		Tangents tangents3 = computeTangents(v1 - v2, v0 - v2, uv1 - uv2, uv0 - uv2);
+
+		tangents.push_back(tangents1.tangent);
+		tangents.push_back(tangents2.tangent);
+		tangents.push_back(tangents3.tangent);
+
+		bitTangents.push_back(tangents1.bitTangent);
+		bitTangents.push_back(tangents2.bitTangent);
+		bitTangents.push_back(tangents3.bitTangent);
+
+		//DEBUG_PRINT("\nVert: ", v0);
+		//DEBUG_PRINT("\nTangent: ", tangents1.tangent);
+		//DEBUG_PRINT("\nBit Tangent: ", tangents1.bitTangent);
+		//DEBUG_PRINT("\nVert: ", v1);
+		//DEBUG_PRINT("\nTangent: ", tangents2.tangent);
+		//DEBUG_PRINT("\nBit Tangent: ", tangents2.bitTangent);
+		//DEBUG_PRINT("\nVert: ", v2);
+		//DEBUG_PRINT("\nTangent: ", tangents3.tangent);
+		//DEBUG_PRINT("\nBit Tangent: ", tangents2.bitTangent);
+	}
+
+	glBindVertexArray(ids->vao);
+
+	generateAttribute(3, 3, tangents, false, false);
+	generateAttribute(4, 3, bitTangents, false, false);
 }
 
 GLuint generateTexture(const PNGImage &pngImage) {

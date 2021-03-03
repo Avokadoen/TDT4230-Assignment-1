@@ -190,9 +190,9 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 	
 	{	
 		Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
-		unsigned int boxVAO = generateBuffer(box, false).vao;
+		GLIds boxIDs = generateBuffer(box, false);
 		boxNode = createSceneNode(GEOMETRY_NORMAL_MAPPED);
-		boxNode->vertexArrayObjectID = boxVAO;
+		boxNode->vertexArrayObjectID = boxIDs.vao;
 		boxNode->VAOIndexCount = box.indices.size();
 
 		PNGImage brickNormals = loadPNGFile("../res/textures/Brick03_nrm.png");
@@ -204,6 +204,8 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 		boxNode->diffuseTextureID = brickColorID;
 		
 		rootNode->children.push_back(boxNode);
+
+		appendTBNBuffer(box, &boxIDs);
 	}
 
 	{

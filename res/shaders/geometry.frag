@@ -18,9 +18,9 @@ struct Ball {
 	float radius;
 };
 
-in layout(location = 0) vec3 vertNormal;
 in layout(location = 1) vec2 textureCoordinates;
 in layout(location = 2) vec3 position;
+in layout(location = 3) mat3 tbn;
 
 layout (binding = 0) uniform sampler2D diffuseSample;
 layout (binding = 1) uniform sampler2D normalSample;
@@ -29,6 +29,7 @@ uniform vec3 viewPosition;
 uniform PointLights pLights;
 uniform vec3 ambient;
 uniform int isNormalMapped; 
+
 
 uniform Ball ball;
 // TODO: light member, ball member, based on distance between light and ball? 
@@ -55,10 +56,11 @@ void main()
 	if (isNormalMapped == 1) {
 		normal = texture(normalSample, textureCoordinates).rgb;
 		normal = normalize(normal * 2.0 - 1.0);
+		normal = tbn * normal;
 		// TODO: doesn't really make sense that: normal mapped == color mapped. Maybe rename to isTextureMapped
 		objectColor = texture(diffuseSample, textureCoordinates);
 	} else {
-		normal = normalize(vertNormal);
+		normal = normalize(tbn[2]);
 		objectColor = vec4(0.5, 0.5, 0.5, 1.0);
 	}
 

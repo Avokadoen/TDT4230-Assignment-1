@@ -20,11 +20,9 @@ PNGImage loadPNGFile(std::string fileName)
 	// Unfortunately, images usually have their origin at the top left.
 	// OpenGL instead defines the origin to be on the _bottom_ left instead, so
 	// here's the world's most inefficient way to flip the image vertically.
-
-	// You're welcome :)
-
+	// You're welcome :) 
+	// TODO: Configure OpenGL or find a faster solution
 	unsigned int widthBytes = 4 * width;
-
 	for(unsigned int row = 0; row < (height / 2); row++) {
 		for(unsigned int col = 0; col < widthBytes; col++) {
 			std::swap(pixels[row * widthBytes + col], pixels[(height - 1 - row) * widthBytes + col]);
