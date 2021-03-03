@@ -1,6 +1,6 @@
 #version 430 core
 // TODO: find a better way of setting size
-const int POINT_LIGHTS = 1;
+const int POINT_LIGHTS = 3;
 
 struct PointLights {
 	vec3 position[POINT_LIGHTS];

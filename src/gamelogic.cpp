@@ -27,7 +27,7 @@
 
 #include <timestamps.h>
 
-#define POINT_LIGHTS 1
+#define POINT_LIGHTS 3
 
 const glm::mat4 identity = glm::mat4(1.0f);
 
@@ -216,7 +216,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			// Add light 0 and 1 as child of the pad and the ball node
 			switch (i) {
 			case 0:
-				pointLights.color[i] = glm::vec3(1, 1, 1);
+				pointLights.color[i] = glm::vec3(1, 0, 0);
 
 				pointLights.linear[i] = 0.002;
 				pointLights.quadratic[i] = 0.0002;
