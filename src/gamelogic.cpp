@@ -25,13 +25,9 @@
 // TODO: separate rendering and game logic into their own file
 // TODO: use std ptr (shared, unique ...) instead of raw pointers
 
-// TODO: code smell: can't move this thing or timestamps.h won't compile ... 
-enum KeyFrameAction {
-	BOTTOM, TOP
-};
 #include <timestamps.h>
 
-#define POINT_LIGHTS 3
+#define POINT_LIGHTS 1
 
 const glm::mat4 identity = glm::mat4(1.0f);
 
@@ -48,8 +44,7 @@ struct PointLights {
 	float constant[POINT_LIGHTS];
 	float linear[POINT_LIGHTS];
 	float quadratic[POINT_LIGHTS];
-};
-PointLights pointLights;
+} pointLights;
 
 double padPositionX = 0;
 double padPositionZ = 0;
@@ -108,9 +103,9 @@ double lastMouseY = windowHeight / 2;
 // TODO: HACK: just keep the projection mat as a variable here for now
 //		 it should not be in the scene graph for many reasons, so not quite sure of a 
 //	     good location to keep this.
-// the camera projection and transformation (VP)
 glm::mat4 pers_projection;
 glm::mat4 orth_projection;
+// the camera projection and transformation (VP)
 glm::mat4 vpMat;
 glm::mat4 cameraTransform;
 
@@ -124,6 +119,10 @@ void updateScore(int addition) {
 	score += addition;
 	updateTextGeometryBuffer(scoreText, "score: " + std::to_string(score));
 	updateBuffer(scoreTextIds.vao, scoreTextIds.texture, scoreText.mesh.textureCoordinates);
+}
+
+inline bool bitMask(int a, int b) {
+	return ((int)a & b) > 0;
 }
 
 void mouseCallback(GLFWwindow* window, const double x, const double y) {
@@ -151,9 +150,6 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 		return;
 	}
 
-	PNGImage charmap = loadPNGFile("../res/textures/charmap.png");
-	GLint charMapId = generateTexture(charmap);
-
 	options = gameOptions;
 
 	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_HIDDEN);
@@ -171,32 +167,44 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 
 	// Create meshes
 	Mesh pad = cube(padDimensions, glm::vec2(30, 40), true);
-	Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
 	Mesh sphere = generateSphere(radius, 40, 40);
 
 	// Fill buffers
 	unsigned int ballVAO = generateBuffer(sphere, false).vao;
-	unsigned int boxVAO = generateBuffer(box, false).vao;
 	unsigned int padVAO = generateBuffer(pad, false).vao;
 
 	// Construct scene
 	rootNode = createSceneNode(GEOMETRY);
-	boxNode = createSceneNode(GEOMETRY);
 	padNode = createSceneNode(GEOMETRY);
 	ballNode = createSceneNode(GEOMETRY);
 
-	rootNode->children.push_back(boxNode);
 	rootNode->children.push_back(padNode);
 	rootNode->children.push_back(ballNode);
 
-	boxNode->vertexArrayObjectID = boxVAO;
-	boxNode->VAOIndexCount = box.indices.size();
 
 	padNode->vertexArrayObjectID = padVAO;
 	padNode->VAOIndexCount = pad.indices.size();
 
 	ballNode->vertexArrayObjectID = ballVAO;
 	ballNode->VAOIndexCount = sphere.indices.size();
+	
+	{	
+		Mesh box = cube(boxDimensions, glm::vec2(90), true, true);
+		unsigned int boxVAO = generateBuffer(box, false).vao;
+		boxNode = createSceneNode(GEOMETRY_NORMAL_MAPPED);
+		boxNode->vertexArrayObjectID = boxVAO;
+		boxNode->VAOIndexCount = box.indices.size();
+
+		PNGImage brickNormals = loadPNGFile("../res/textures/Brick03_nrm.png");
+		GLint brickNormalsID = generateTexture(brickNormals);
+		boxNode->normalMapID = brickNormalsID;
+
+		PNGImage brickColor = loadPNGFile("../res/textures/Brick03_col.png");
+		GLint brickColorID = generateTexture(brickColor);
+		boxNode->diffuseTextureID = brickColorID;
+		
+		rootNode->children.push_back(boxNode);
+	}
 
 	{
 		for (int i = 0; i < POINT_LIGHTS; i++) {
@@ -206,7 +214,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			// Add light 0 and 1 as child of the pad and the ball node
 			switch (i) {
 			case 0:
-				pointLights.color[i] = glm::vec3(1, 0, 0);
+				pointLights.color[i] = glm::vec3(1, 1, 1);
 
 				pointLights.linear[i] = 0.002;
 				pointLights.quadratic[i] = 0.0002;
@@ -243,38 +251,43 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 	}
 
 	{
-		// Create test text node, max score of 99999999 and min of -9999999
-		std::string scoreTemplate = "score: xxxxxxxx";
-		scoreText = generateTextGeometryBuffer(scoreTemplate, 39 / 29, scoreTemplate.length() * 29);
-		scoreTextIds = generateBuffer(scoreText.mesh, true);
-		scoreTextNode = createSceneNode(GEOMETRY_2D);
-		scoreTextNode->vertexArrayObjectID = scoreTextIds.vao;
-		scoreTextNode->VAOIndexCount = scoreText.mesh.indices.size();
-		scoreTextNode->position = glm::vec3(0, 0, 0);
-		scoreTextNode->textureID = charMapId;
+		PNGImage charmap = loadPNGFile("../res/textures/charmap.png");
+		GLint charMapId = generateTexture(charmap);
 
-		rootNode->children.push_back(scoreTextNode);
-		// Update score text to 0 in UI (will be 'xxxxxxxx' otherwise)
-		updateScore(0);
+		{
+			// Create test text node, max score of 99999999 and min of -9999999
+			std::string scoreTemplate = "score: xxxxxxxx";
+			scoreText = generateTextGeometryBuffer(scoreTemplate, 39 / 29, scoreTemplate.length() * 29);
+			scoreTextIds = generateBuffer(scoreText.mesh, true);
+			scoreTextNode = createSceneNode(GEOMETRY_2D);
+			scoreTextNode->vertexArrayObjectID = scoreTextIds.vao;
+			scoreTextNode->VAOIndexCount = scoreText.mesh.indices.size();
+			scoreTextNode->position = glm::vec3(0, 0, 0);
+			scoreTextNode->diffuseTextureID = charMapId;
+
+			rootNode->children.push_back(scoreTextNode);
+			// Update score text to 0 in UI (will be 'xxxxxxxx' otherwise)
+			updateScore(0);
+		}
+
+		{
+			// Create instruction text node
+			std::string instrText = "press left mouse button to start";
+			float totalWidth = instrText.length() * 29;
+			TextMesh instrMesh = generateTextGeometryBuffer(instrText, 39 / 29, totalWidth);
+			GLuint instrVao = generateBuffer(instrMesh.mesh, false).vao;
+			instructionTextNode = createSceneNode(GEOMETRY_2D);
+			instructionTextNode->vertexArrayObjectID = instrVao;
+			instructionTextNode->VAOIndexCount = instrMesh.mesh.indices.size();
+			// Place text at the middle of the screen
+			float xPosition = totalWidth * 0.5 / windowWidth;
+			instructionTextNode->position = glm::vec3(xPosition, 1, 0);
+			instructionTextNode->diffuseTextureID = charMapId;
+
+			rootNode->children.push_back(instructionTextNode);
+		}
 	}
-
-	{
-		// Create instruction text node
-		std::string instrText = "press left mouse button to start";
-		float totalWidth = instrText.length() * 29;
-		TextMesh instrMesh = generateTextGeometryBuffer(instrText, 39 / 29, totalWidth);
-		GLuint instrVao = generateBuffer(instrMesh.mesh, false).vao;
-		instructionTextNode = createSceneNode(GEOMETRY_2D);
-		instructionTextNode->vertexArrayObjectID = instrVao;
-		instructionTextNode->VAOIndexCount = instrMesh.mesh.indices.size();
-		// Place text at the middle of the screen
-		float xPosition = totalWidth * 0.5 / windowWidth;
-		instructionTextNode->position = glm::vec3(xPosition, 1, 0);
-		instructionTextNode->textureID = charMapId;
-
-		rootNode->children.push_back(instructionTextNode);
-	}
-
+	
 	// currently the application can't change window size, so we only construct this in setup. 
 	// glfw support listening to window resize so we could move this there if we ever support it
 	// Keep in mind that text should be regenerated on resize
@@ -504,7 +517,7 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4& transformationT
 
 	node->currentTransformationMatrix = transformationThusFar * transformationMatrix;
 
-	if (node->nodeType == GEOMETRY) {
+	if (bitMask(node->nodeType, GEOMETRY | GEOMETRY_NORMAL_MAPPED)) {
 		// Calculate the normal transformation
 		glm::mat3 rotationAndScale = glm::mat3(node->currentTransformationMatrix);
 		node->normalMatrix = glm::transpose(glm::inverse(rotationAndScale));
@@ -516,37 +529,57 @@ void updateNodeTransformations(SceneNode* node, const glm::mat4& transformationT
 }
 
 // should be called from renderFrame or self, or make sure to set vpLocation to current VP
-void renderNode(SceneNode* node, SceneNodeType nodeType) {
-	if (node->nodeType == nodeType) {
+void renderNode(const SceneNode* node, int renderBitmask) {
+	if (bitMask(node->nodeType, renderBitmask)) {
 		switch (node->nodeType) {
-		case GEOMETRY:
+		case GEOMETRY_NORMAL_MAPPED:
 			if (node->vertexArrayObjectID == -1) break;
+			glBindVertexArray(node->vertexArrayObjectID);
+			glUniform1i(geometryVars[IS_NORMAL_MAPPED], GL_TRUE);
 			glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 			glUniformMatrix3fv(geometryVars[NORMAL_MATRIX], 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
-			glBindVertexArray(node->vertexArrayObjectID);
+			glBindTextureUnit(0, node->diffuseTextureID);
+			glBindTextureUnit(1, node->normalMapID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+			glBindTextureUnit(0, 0);
+			glBindTextureUnit(1, 0);
+			glBindVertexArray(0);
+			break;
+		case GEOMETRY:
+			if (node->vertexArrayObjectID == -1) break;
+			glBindVertexArray(node->vertexArrayObjectID);
+			glUniform1i(geometryVars[IS_NORMAL_MAPPED], GL_FALSE);
+			glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
+			glUniformMatrix3fv(geometryVars[NORMAL_MATRIX], 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
+			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
+			glBindVertexArray(0);
 			break;
 		case GEOMETRY_2D:
 			if (node->vertexArrayObjectID == -1) break;
 			glm::mat4 mp = node->currentTransformationMatrix * orth_projection;
-			glUniformMatrix4fv(geometry2DVars[MP], 1, GL_FALSE, glm::value_ptr(mp));
 			glBindVertexArray(node->vertexArrayObjectID);
+			glUniformMatrix4fv(geometry2DVars[MP], 1, GL_FALSE, glm::value_ptr(mp));
 			// TODO: default to an error texture if ID is not set
 			// currently only use one texture unit (0)
-			glBindTextureUnit(0, node->textureID);
+			glBindTextureUnit(0, node->diffuseTextureID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 			glBindTextureUnit(0, 0);
+			glBindVertexArray(0);
 			break;
-		case GEOMETRY_NORMAL_MAPPED:
-		case POINT_LIGHT:
+		case POINT_LIGHT: 
+			// Point light data is handled in renderFrame()
+			break;
 		case SPOT_LIGHT:
+			// NOT IMPLEMENTED 
+			std::cerr << "NOT IMPLEMENTED: node type was SPOT_LIGHT" << std::endl;
+			exit(1);
 		default:
 			break;
 		}
 	}
 
 	for (SceneNode* child : node->children) {
-		renderNode(child, nodeType);
+		renderNode(child, renderBitmask);
 	}
 }
 
@@ -560,7 +593,6 @@ void renderFrame(GLFWwindow* window) {
 		// TODO: currently a hack to unwrap the position from point lights. 
 		//		 do something less hacky instead
 		glm::vec3 positions[POINT_LIGHTS];
-
 		for (int i = 0; i < POINT_LIGHTS; i++) {
 			// extract world position from transform: make member [3][0], [3][1] and [3][2] to a vec3
 			// these entries happens to be the current translation in the transform and should not be affected
@@ -579,14 +611,12 @@ void renderFrame(GLFWwindow* window) {
 		glUniform3fv(geometryVars[PL_POSITION], POINT_LIGHTS, glm::value_ptr(positions[0]));
 		glUniform3fv(geometryVars[PL_COLOR], POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
 		glUniform3fv(geometryVars[BALL_POSITION], 1, glm::value_ptr(ballNode->position));
-		renderNode(rootNode, GEOMETRY);
+		renderNode(rootNode, GEOMETRY | GEOMETRY_NORMAL_MAPPED);
 		geometryShader->deactivate();
 	}
 
-
 	{
 		geometry2DShader->activate();
-		// TODO: doesn't really make sense to use the same scene for UI?
 		renderNode(rootNode, GEOMETRY_2D);
 		geometry2DShader->deactivate();
 	}

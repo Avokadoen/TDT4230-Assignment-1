@@ -11,6 +11,7 @@
 
 // Indices to shader variables
 enum GeomtryVariables {
+	IS_NORMAL_MAPPED,
 	VIEW_PROJECTION,
 	TRANSFORM,
 	NORMAL_MATRIX,
@@ -32,6 +33,7 @@ enum GeomtryVariables {
 // Use GeomtryVariables enum to organize index access
 // Array must be atleast MAX_GEOMETRY_VARS in size
 void initializeGeomtryVariables(const GLint program, GLint* vars) {
+	vars[IS_NORMAL_MAPPED] = glGetUniformLocation(program, "isNormalMapped");
 	vars[VIEW_PROJECTION] = glGetUniformLocation(program, "VP");
 	vars[TRANSFORM] = glGetUniformLocation(program, "mTransform");
 	vars[NORMAL_MATRIX] = glGetUniformLocation(program, "normalMatrix");
@@ -53,7 +55,7 @@ enum Geometry2DVariables {
 	MAX_GEOMETRY2D_VARS, // !Always last entry!
 };
 
-// Accepts a geometry shader program id and an array that will be 
+// Accepts a geometry 2D shader program id and an array that will be 
 // populated with location for each geomtry shader uniform variable. 
 // Use Geometry2DVariables enum to organize index access
 // Array must be atleast MAX_GEOMETRY2D_VARS in size

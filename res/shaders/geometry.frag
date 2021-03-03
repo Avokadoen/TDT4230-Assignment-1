@@ -1,6 +1,6 @@
 #version 430 core
 // TODO: find a better way of setting size
-const int POINT_LIGHTS = 3;
+const int POINT_LIGHTS = 1;
 
 struct PointLights {
 	vec3 position[POINT_LIGHTS];
@@ -18,13 +18,17 @@ struct Ball {
 	float radius;
 };
 
-in layout(location = 0) vec3 normal;
+in layout(location = 0) vec3 vertNormal;
 in layout(location = 1) vec2 textureCoordinates;
 in layout(location = 2) vec3 position;
+
+layout (binding = 0) uniform sampler2D diffuseSample;
+layout (binding = 1) uniform sampler2D normalSample;
 
 uniform vec3 viewPosition;
 uniform PointLights pLights;
 uniform vec3 ambient;
+uniform int isNormalMapped; 
 
 uniform Ball ball;
 // TODO: light member, ball member, based on distance between light and ball? 
@@ -46,10 +50,18 @@ vec3 reject(vec3 from, vec3 onto) {
 
 void main()
 {
-	vec3 normNorm = normalize(normal);
+	vec3 normal;
+	vec4 objectColor; 
+	if (isNormalMapped == 1) {
+		normal = texture(normalSample, textureCoordinates).rgb;
+		normal = normalize(normal * 2.0 - 1.0);
+		// TODO: doesn't really make sense that: normal mapped == color mapped. Maybe rename to isTextureMapped
+		objectColor = texture(diffuseSample, textureCoordinates);
+	} else {
+		normal = normalize(vertNormal);
+		objectColor = vec4(0.5, 0.5, 0.5, 1.0);
+	}
 
-	// TODO: texture?
-	vec3 objectColor = vec3(0.5, 0.5, 0.5);
 	float specularIntensity = 0.3;
 
 	// accumulative value for illumination  
@@ -80,9 +92,9 @@ void main()
 		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
 		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
-		illumination += (diffuse + specular) * objectColor * shadow;
+		illumination += (diffuse + specular) * objectColor.xyz * shadow;
 	}
 
-    color = vec4((objectColor * illumination) + dither(textureCoordinates), 1.0);
+    color = vec4(objectColor.xyz * illumination + dither(textureCoordinates), objectColor.w);
 }
 

@@ -15,11 +15,11 @@
 #include <fstream>
 
 enum SceneNodeType {
-	GEOMETRY,
-	GEOMETRY_2D,
-	GEOMETRY_NORMAL_MAPPED,
-	POINT_LIGHT, 
-	SPOT_LIGHT, 
+	GEOMETRY				= 0b00001,
+	GEOMETRY_NORMAL_MAPPED	= 0b00010,
+	GEOMETRY_2D				= 0b00100,
+	POINT_LIGHT				= 0b01000,
+	SPOT_LIGHT				= 0b10000,
 };
 
 struct SceneNode {
@@ -30,7 +30,8 @@ struct SceneNode {
 
 		referencePoint = glm::vec3(0, 0, 0);
 		vertexArrayObjectID = -1;
-		textureID = -1;
+		diffuseTextureID = 0;
+		normalMapID = 0;
 		VAOIndexCount = 0;
 
 		nodeType = type;
@@ -60,8 +61,9 @@ struct SceneNode {
 	// Node type is used to determine how to handle the contents of a node
 	SceneNodeType nodeType;
 
-	// Optional texture
-	GLuint textureID;
+	// Optional textures
+	GLuint diffuseTextureID;
+	GLuint normalMapID;
 };
 
 SceneNode* createSceneNode(SceneNodeType type);
