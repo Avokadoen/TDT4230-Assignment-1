@@ -76,8 +76,6 @@ glm::vec3 ballPosition(0, ballRadius + padDimensions.y, boxDimensions.z / 2);
 glm::vec3 ballDirection(1, 1, 0.2f);
 
 CommandLineOptions options;
-
-int score = 0;
 TextMesh scoreText;
 GLIds scoreTextIds;
 
@@ -116,6 +114,7 @@ GLint geometry2DVars[MAX_GEOMETRY2D_VARS];
 
 
 void updateScore(int addition) {
+	static int score;
 	score += addition;
 	updateTextGeometryBuffer(scoreText, "score: " + std::to_string(score));
 	updateBuffer(scoreTextIds.vao, scoreTextIds.texture, scoreText.mesh.textureCoordinates);
