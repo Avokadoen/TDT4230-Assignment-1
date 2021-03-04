@@ -6,6 +6,7 @@
 struct TextMesh {
 	Mesh mesh;
 	std::string text;
+	unsigned int maxLength;
 };
 
 TextMesh generateTextGeometryBuffer(const std::string text, const float characterHeightOverWidth, const float totalTextWidth);

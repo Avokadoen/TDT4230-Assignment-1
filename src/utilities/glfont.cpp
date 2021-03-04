@@ -55,17 +55,19 @@ TextMesh generateTextGeometryBuffer(const std::string text, const float characte
 	return TextMesh{
 		mesh,
 		text,
+		text.length()
 	};
 }
 
 // Update textureCoordinates to type new text to the same buffer.
 void updateTextGeometryBuffer(TextMesh& textMesh, const std::string text) {
-	unsigned int vertexCount = 4 * text.length();
-	unsigned int indexCount = 6 * text.length();
+	const int textLength = text.length();
+	unsigned int vertexCount = 4 * textLength;
+	unsigned int indexCount = 6 * textLength;
 
-	for (unsigned int i = 0; i < textMesh.text.length(); i++)
+	for (unsigned int i = 0; i < textMesh.maxLength; i++)
 	{
-		if (i < text.length()) {
+		if (i < textLength) {
 			setTextureCoordinates(&textMesh.mesh, i, text[i]);
 		}
 		else {
@@ -76,4 +78,6 @@ void updateTextGeometryBuffer(TextMesh& textMesh, const std::string text) {
 			textMesh.mesh.textureCoordinates.at(4 * i + 3) = zero;
 		}
 	}
+
+	textMesh.text = text;
 }
