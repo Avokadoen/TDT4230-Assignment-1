@@ -59,10 +59,6 @@ Tangents computeTangents(const glm::vec3& deltaPos1, const glm::vec3& deltaPos2,
 	};
 }
 
-//inline void DEBUG_PRINT(std::string msg, glm::vec3& vec) {
-//	std::cout << msg << vec.x << " " << vec.y << " " << vec.z;
-//}
-
 // GEOMETRY_NORMAL_MAPPED nodes should call this before being rendered
 void appendTBNBuffer(Mesh &mesh, GLIds* ids) {
 	unsigned int vertSize = mesh.vertices.size();
@@ -92,16 +88,6 @@ void appendTBNBuffer(Mesh &mesh, GLIds* ids) {
 		bitTangents.push_back(tangents1.bitTangent);
 		bitTangents.push_back(tangents2.bitTangent);
 		bitTangents.push_back(tangents3.bitTangent);
-
-		//DEBUG_PRINT("\nVert: ", v0);
-		//DEBUG_PRINT("\nTangent: ", tangents1.tangent);
-		//DEBUG_PRINT("\nBit Tangent: ", tangents1.bitTangent);
-		//DEBUG_PRINT("\nVert: ", v1);
-		//DEBUG_PRINT("\nTangent: ", tangents2.tangent);
-		//DEBUG_PRINT("\nBit Tangent: ", tangents2.bitTangent);
-		//DEBUG_PRINT("\nVert: ", v2);
-		//DEBUG_PRINT("\nTangent: ", tangents3.tangent);
-		//DEBUG_PRINT("\nBit Tangent: ", tangents2.bitTangent);
 	}
 
 	glBindVertexArray(ids->vao);
