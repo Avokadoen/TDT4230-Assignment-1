@@ -24,6 +24,7 @@ in layout(location = 3) mat3 tbn;
 
 layout (binding = 0) uniform sampler2D diffuseSample;
 layout (binding = 1) uniform sampler2D normalSample;
+layout (binding = 2) uniform sampler2D roughnessSample;
 
 uniform vec3 viewPosition;
 uniform PointLights pLights;
@@ -51,6 +52,8 @@ vec3 reject(vec3 from, vec3 onto) {
 
 void main()
 {
+	const float specularIntensity = 1;
+	float shininess;  
 	vec3 normal;
 	vec4 objectColor; 
 	if (isNormalMapped == 1) {
@@ -59,12 +62,13 @@ void main()
 		normal = tbn * normal;
 		// TODO: doesn't really make sense that: normal mapped == color mapped. Maybe rename to isTextureMapped
 		objectColor = texture(diffuseSample, textureCoordinates);
+		shininess = 5 / pow(texture(roughnessSample, textureCoordinates).r, 2);
 	} else {
 		normal = normalize(tbn[2]);
 		objectColor = vec4(0.5, 0.5, 0.5, 1.0);
+		shininess = 32;
 	}
 
-	float specularIntensity = 0.3;
 
 	// accumulative value for illumination  
 	vec3 illumination = ambient;
@@ -91,7 +95,7 @@ void main()
 		
 		vec3 reflectDir = reflect(-lightDir, normal);  
 		vec3 viewDir = normalize(viewPosition - position);
-		float spec = max(pow(dot(reflectDir, viewDir), 32), 0);
+		float spec = max(pow(dot(reflectDir, viewDir), shininess), 0);
 		vec3 specular = (spec * pLights.color[i] * specularIntensity) * attenuation;
 
 		illumination += (diffuse + specular) * objectColor.xyz * shadow;

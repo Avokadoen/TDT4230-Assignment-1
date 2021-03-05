@@ -28,4 +28,4 @@ template <class T> void updateBuffer(GLuint vao, GLuint bufferID, const std::vec
 
 void appendTBNBuffer(Mesh &mesh, GLIds* ids);
 
-GLuint generateTexture(const PNGImage &pngImage);
+GLuint generateTexture(const PNGImage &pngImage, GLint format);

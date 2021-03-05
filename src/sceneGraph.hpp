@@ -25,15 +25,16 @@ enum SceneNodeType {
 
 struct SceneNode {
 	SceneNode(SceneNodeType type) {
-		position = glm::vec3(0, 0, 0);
-		rotation = glm::vec3(0, 0, 0);
-		scale = glm::vec3(1, 1, 1);
+		position	= glm::vec3(0, 0, 0);
+		rotation	= glm::vec3(0, 0, 0);
+		scale		= glm::vec3(1, 1, 1);
 
-		referencePoint = glm::vec3(0, 0, 0);
+		referencePoint		= glm::vec3(0, 0, 0);
 		vertexArrayObjectID = -1;
-		diffuseTextureID = 0;
-		normalMapID = 0;
-		VAOIndexCount = 0;
+		diffuseID			= 0;
+		normalMapID			= 0;
+		roughnessID			= 0;
+		VAOIndexCount		= 0;
 
 		nodeType = type;
 	}
@@ -63,8 +64,9 @@ struct SceneNode {
 	SceneNodeType nodeType;
 
 	// Optional textures
-	GLuint diffuseTextureID;
+	GLuint diffuseID;
 	GLuint normalMapID;
+	GLuint roughnessID;
 };
 
 SceneNode* createSceneNode(SceneNodeType type);

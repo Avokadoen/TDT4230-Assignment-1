@@ -204,13 +204,17 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 		boxNode->VAOIndexCount = box.indices.size();
 
 		PNGImage brickNormals = loadPNGFile("../res/textures/Brick03_nrm.png");
-		GLint brickNormalsID = generateTexture(brickNormals);
+		GLint brickNormalsID = generateTexture(brickNormals, GL_RGBA);
 		boxNode->normalMapID = brickNormalsID;
 
 		PNGImage brickColor = loadPNGFile("../res/textures/Brick03_col.png");
-		GLint brickColorID = generateTexture(brickColor);
-		boxNode->diffuseTextureID = brickColorID;
-		
+		GLint brickColorID = generateTexture(brickColor, GL_RGBA);
+		boxNode->diffuseID = brickColorID;
+
+		PNGImage brickRoughness = loadPNGFile("../res/textures/Brick03_rgh.png");
+		GLint brickbrickRoughnessID = generateTexture(brickRoughness, GL_R8);
+		boxNode->roughnessID = brickbrickRoughnessID;
+
 		gameRoot->children.push_back(boxNode);
 
 		appendTBNBuffer(box, &boxIDs);
@@ -262,7 +266,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 
 	{
 		PNGImage charmap = loadPNGFile("../res/textures/charmap.png");
-		GLint charMapId = generateTexture(charmap);
+		GLint charMapId = generateTexture(charmap, GL_RGBA);
 
 		{
 			// Create test text node, max score of 99999999 and min of -9999999
@@ -273,7 +277,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			scoreTextNode->vertexArrayObjectID = scoreTextIds.vao;
 			scoreTextNode->VAOIndexCount = scoreText.mesh.indices.size();
 			scoreTextNode->position = glm::vec3(0, 0, 0);
-			scoreTextNode->diffuseTextureID = charMapId;
+			scoreTextNode->diffuseID = charMapId;
 
 			uiRoot->children.push_back(scoreTextNode);
 			// Update score text to 0 in UI (will be 'xxxxxxxx' otherwise)
@@ -292,7 +296,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			// Place text at the middle of the screen
 			float xPosition = totalWidth * 0.5 / windowWidth;
 			instructionTextNode->position = glm::vec3(xPosition, 1, 0);
-			instructionTextNode->diffuseTextureID = charMapId;
+			instructionTextNode->diffuseID = charMapId;
 
 			uiRoot->children.push_back(instructionTextNode);
 		}
@@ -548,11 +552,13 @@ void renderNode(const SceneNode* node, int renderBitmask) {
 			glUniform1i(geometryVars[IS_NORMAL_MAPPED], GL_TRUE);
 			glUniformMatrix4fv(geometryVars[TRANSFORM], 1, GL_FALSE, glm::value_ptr(node->currentTransformationMatrix));
 			glUniformMatrix3fv(geometryVars[NORMAL_MATRIX], 1, GL_FALSE, glm::value_ptr(node->normalMatrix));
-			glBindTextureUnit(0, node->diffuseTextureID);
+			glBindTextureUnit(0, node->diffuseID);
 			glBindTextureUnit(1, node->normalMapID);
+			glBindTextureUnit(2, node->roughnessID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 			glBindTextureUnit(0, 0);
 			glBindTextureUnit(1, 0);
+			glBindTextureUnit(2, 0);
 			glBindVertexArray(0);
 			break;
 		case GEOMETRY:
@@ -571,7 +577,7 @@ void renderNode(const SceneNode* node, int renderBitmask) {
 			glUniformMatrix4fv(geometry2DVars[MP], 1, GL_FALSE, glm::value_ptr(mp));
 			// TODO: default to an error texture if ID is not set
 			// currently only use one texture unit (0)
-			glBindTextureUnit(0, node->diffuseTextureID);
+			glBindTextureUnit(0, node->diffuseID);
 			glDrawElements(GL_TRIANGLES, node->VAOIndexCount, GL_UNSIGNED_INT, nullptr);
 			glBindTextureUnit(0, 0);
 			glBindVertexArray(0);
@@ -613,8 +619,7 @@ void renderFrame(GLFWwindow* window) {
 		// TODO: only do update of ambient if the value changes
 		glUniform3fv(geometryVars[AMBIENT], 1, glm::value_ptr(ambient));
 		glUniformMatrix4fv(geometryVars[VIEW_PROJECTION], 1, GL_FALSE, glm::value_ptr(vpMat));
-		auto cameraPositionPtr = glm::value_ptr(glm::vec3(cameraTransform[3]));
-		glUniform3fv(geometryVars[VIEW_POSITION], 1, cameraPositionPtr);
+		glUniform3fv(geometryVars[VIEW_POSITION], 1, glm::value_ptr(glm::vec3(cameraTransform[3])));
 		// TODO: we only need to send the 2 first lights, 
 		//		 consider having some logic to only update moving lights
 		// Send all light positions to the GPU

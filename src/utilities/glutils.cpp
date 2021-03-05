@@ -42,7 +42,7 @@ struct Tangents {
 	glm::vec3 bitTangent;
 };
 
-Tangents computeTangents(const glm::vec3& deltaPos1, const glm::vec3& deltaPos2, const glm::vec2& deltaUV1, const glm::vec2& deltaUV2) {
+inline Tangents computeTangents(const glm::vec3& deltaPos1, const glm::vec3& deltaPos2, const glm::vec2& deltaUV1, const glm::vec2& deltaUV2) {
 	float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
 	glm::vec3 tangent;
 	tangent.x = f * (deltaUV2.y * deltaPos1.x - deltaUV1.y * deltaPos2.x);
@@ -98,11 +98,11 @@ void appendTBNBuffer(Mesh &mesh, GLIds* ids) {
 	glBindVertexArray(0);
 }
 
-GLuint generateTexture(const PNGImage &pngImage) {
+GLuint generateTexture(const PNGImage &pngImage, GLint format) {
 	GLuint id;
 	glGenTextures(1, &id);
 	glBindTexture(GL_TEXTURE_2D, id);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, pngImage.width, pngImage.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pngImage.pixels.data());
+	glTexImage2D(GL_TEXTURE_2D, 0, format, pngImage.width, pngImage.height, 0, format, GL_UNSIGNED_BYTE, pngImage.pixels.data());
 
 	glGenerateMipmap(GL_TEXTURE_2D);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
