@@ -53,11 +53,14 @@ unsigned int currentKeyFrame = 0;
 unsigned int previousKeyFrame = 0;
 
 SceneNode* rootNode;
+
+SceneNode* gameRoot;
 SceneNode* boxNode;
 SceneNode* ballNode;
 SceneNode* padNode;
 
 // Text nodes
+SceneNode* uiRoot;
 SceneNode* scoreTextNode;
 SceneNode* instructionTextNode;
 
@@ -173,12 +176,18 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 	unsigned int padVAO = generateBuffer(pad, false).vao;
 
 	// Construct scene
-	rootNode = createSceneNode(GEOMETRY);
+	rootNode = createSceneNode(EMPTY);
+	gameRoot = createSceneNode(EMPTY);
+	uiRoot = createSceneNode(EMPTY);
+
+	rootNode->children.push_back(gameRoot);
+	rootNode->children.push_back(uiRoot);
+
 	padNode = createSceneNode(GEOMETRY);
 	ballNode = createSceneNode(GEOMETRY);
 
-	rootNode->children.push_back(padNode);
-	rootNode->children.push_back(ballNode);
+	gameRoot->children.push_back(padNode);
+	gameRoot->children.push_back(ballNode);
 
 
 	padNode->vertexArrayObjectID = padVAO;
@@ -202,7 +211,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 		GLint brickColorID = generateTexture(brickColor);
 		boxNode->diffuseTextureID = brickColorID;
 		
-		rootNode->children.push_back(boxNode);
+		gameRoot->children.push_back(boxNode);
 
 		appendTBNBuffer(box, &boxIDs);
 	}
@@ -239,7 +248,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 				pointLights.linear[i] = 0.01;
 				pointLights.quadratic[i] = 0.001;
 				pointLights.nodes[i]->position = glm::vec3(0, -10, -80);
-				rootNode->children.push_back(pointLights.nodes[i]);
+				gameRoot->children.push_back(pointLights.nodes[i]);
 				break;
 			}
 		}
@@ -266,7 +275,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			scoreTextNode->position = glm::vec3(0, 0, 0);
 			scoreTextNode->diffuseTextureID = charMapId;
 
-			rootNode->children.push_back(scoreTextNode);
+			uiRoot->children.push_back(scoreTextNode);
 			// Update score text to 0 in UI (will be 'xxxxxxxx' otherwise)
 			updateScore(0);
 		}
@@ -285,7 +294,7 @@ void initGame(GLFWwindow* window, const CommandLineOptions gameOptions) {
 			instructionTextNode->position = glm::vec3(xPosition, 1, 0);
 			instructionTextNode->diffuseTextureID = charMapId;
 
-			rootNode->children.push_back(instructionTextNode);
+			uiRoot->children.push_back(instructionTextNode);
 		}
 	}
 	
@@ -339,7 +348,7 @@ void updateFrame(GLFWwindow* window) {
 		if (mouseLeftPressed) {
 
 			// Remove instruction on how to start game
-			rootNode->children.erase(std::remove(rootNode->children.begin(), rootNode->children.end(), instructionTextNode), rootNode->children.end());
+			uiRoot->children.erase(std::remove(uiRoot->children.begin(), uiRoot->children.end(), instructionTextNode), uiRoot->children.end());
 
 			if (options.enableMusic) {
 				sound = new sf::Sound();
@@ -362,7 +371,7 @@ void updateFrame(GLFWwindow* window) {
 		if (hasLost) {
 
 			// Add instruction on how to restart
-			rootNode->children.push_back(instructionTextNode);
+			uiRoot->children.push_back(instructionTextNode);
 
 			if (mouseLeftReleased) {
 				hasLost = false;
@@ -612,13 +621,13 @@ void renderFrame(GLFWwindow* window) {
 		glUniform3fv(geometryVars[PL_POSITION], POINT_LIGHTS, glm::value_ptr(positions[0]));
 		glUniform3fv(geometryVars[PL_COLOR], POINT_LIGHTS, glm::value_ptr(pointLights.color[0]));
 		glUniform3fv(geometryVars[BALL_POSITION], 1, glm::value_ptr(ballNode->position));
-		renderNode(rootNode, GEOMETRY | GEOMETRY_NORMAL_MAPPED);
+		renderNode(gameRoot, GEOMETRY | GEOMETRY_NORMAL_MAPPED);
 		geometryShader->deactivate();
 	}
 
 	{
 		geometry2DShader->activate();
-		renderNode(rootNode, GEOMETRY_2D);
+		renderNode(uiRoot, GEOMETRY_2D);
 		geometry2DShader->deactivate();
 	}
 }
