@@ -94,6 +94,8 @@ void appendTBNBuffer(Mesh &mesh, GLIds* ids) {
 
 	generateAttribute(3, 3, tangents, false, false);
 	generateAttribute(4, 3, bitTangents, false, false);
+
+	glBindVertexArray(0);
 }
 
 GLuint generateTexture(const PNGImage &pngImage) {
